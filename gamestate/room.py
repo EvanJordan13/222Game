@@ -1,11 +1,15 @@
 from dataclasses import dataclass
+from deck import Deck, Hand, Card
 import copy 
 import random
+
 @dataclass 
 class Room:
     players = []
     decks = {}
     hands = {}
+    
+    ### Deck Manipulations ###
     
     #shuffles a deck
     #arg1: name of deck 
@@ -31,40 +35,24 @@ class Room:
         room.decks[deck_id] = room.decks[deck_id].add_top(card)
         return room
     
+    ### Hand Manipulations ###
 
-    
-@dataclass
-class Deck:
-    id = ""
-    cards = []
-    def shuffle(self) -> "Deck":
-        deck = copy.copy(self)
-        deck.cards = copy.copy(deck.cards)
-        random.shuffle(deck.cards)
-        return deck
 
-    def remove_top(self, n=1) -> "Deck":
-        deck = copy.copy(self)
-        deck.cards = deck.cards[:-n]
-        return deck
-    
-    def add_top(self, card:"Card") -> "Deck":
-        deck = copy.copy(self)
-        deck.cards = copy.copy(deck.cards)
-        deck.cards.append(card)
-        return deck
 
-@dataclass
-class Hand:
-    cards = []
-    def remove_nth(self, n) -> "Hand":
-        hand = copy.copy(self)
-        hand.cards = copy.copy(hand.cards)
-        hand.cards.pop(n)
-        return hand
-    
-    def add():#TODO
-        return 
-@dataclass
-class Card:
-    png = ""
+
+
+    ### Card Manipulations ###
+
+
+
+
+    ### Deck Inquires ###
+
+
+
+    ### Hand Inquires ###
+
+
+
+    ### Card Inquires ###
+
