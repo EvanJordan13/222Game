@@ -1,13 +1,16 @@
-from gamestate import room
+from room import Room
 
 class BigRoom:
     def __init__(self):
         self.players = []
-        self.room = room.Room()
+        self.room = Room()
     
     def addPlayer(self, playerName):
         self.players.append(playerName)
     
+    def removePlayer(self, playerName):
+        self.players.remove(playerName)
+
     def numPlayers(self):
         return len(self.players)
     

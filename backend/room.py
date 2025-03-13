@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Dict
-from gamestate.objects import Deck, Hand, Card
+from objects import Deck, Hand, Card
 import copy 
 import random
 

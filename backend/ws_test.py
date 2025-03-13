@@ -4,6 +4,8 @@ import json
 
 async def test_websocket(room_id):
     async with websockets.connect(f"ws://127.0.0.1:8000/ws/{room_id}") as websocket:
+        name = input("Enter player name: ")
+        await websocket.send(name)
         while True:
             message = input("Enter JSON data: ")
             try:
