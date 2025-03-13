@@ -3,20 +3,24 @@ const CARD_WIDTH = 120;
 const CARD_HEIGHT = 168;
 const CARD_RADIUS = 8;
 
+
+// Table surface constants
+const TABLE_GRID_SIZE = 40
+
 // Draw the table background
-export const drawTable = (ctx, width, height) => {
+export const drawTable = (ctx, dimensions, camera) => {
+  let width = dimensions.width;
+  let height = dimensions.height;
   // Table background
   ctx.fillStyle = "#076324"; // Dark green for the table
   ctx.fillRect(0, 0, width, height);
 
-  // Table border
-  ctx.strokeStyle = "#8B4513"; // Brown border
-  ctx.lineWidth = 12;
-  ctx.strokeRect(6, 6, width - 12, height - 12);
 
   // Table pattern oooo
   ctx.fillStyle = "#0a7c2e"; // lighter green
 
+  ctx.save();
+  ctx.translate(-camera.x % TABLE_GRID_SIZE, -camera.y % TABLE_GRID_SIZE);
   // Draw pattern
   for (let x = 20; x < width; x += 40) {
     for (let y = 20; y < height; y += 40) {
@@ -25,6 +29,12 @@ export const drawTable = (ctx, width, height) => {
       ctx.fill();
     }
   }
+  ctx.restore();
+
+  // Table border
+  ctx.strokeStyle = "#8B4513"; // Brown border
+  ctx.lineWidth = 12;
+  ctx.strokeRect(6, 6, width - 12, height - 12);
 };
 
 // Draw a single card
