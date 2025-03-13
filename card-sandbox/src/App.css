@@ -1,0 +1,11 @@
+.App {
+  text-align: center;
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+
+.canvas-container {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+}
