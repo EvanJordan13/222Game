@@ -1,6 +1,6 @@
 import pytest
-from gamestate.objects import Deck, Hand, Card
-from gamestate.room import Room
+from objects import Deck, Hand, Card
+from room import Room
 
 
 def test_card_flip():

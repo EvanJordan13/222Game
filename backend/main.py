@@ -1,7 +1,8 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from functions import get_room_id
-from room import Room
+from bigroom import BigRoom
+from models import JoinRoomRequest
 
 app = FastAPI()
 origins = [
@@ -18,6 +19,9 @@ app.add_middleware(
 
 room_ids = {}
 rooms = {}
+room_ids["mcI5j0Kw"] = 1
+rooms["mcI5j0Kw"] = BigRoom()
+
 @app.get("/")
 def root():
     return {"message": "Hello World"}
@@ -26,24 +30,23 @@ def root():
 def create_room():
     invite_code = get_room_id(room_ids)
     room_ids[invite_code] = 1
-    rooms[invite_code] = Room()
+    rooms[invite_code] = BigRoom()
     return {"code": invite_code}
 
 @app.post("/join-room")
-def join_room(room_id: str):
-    if room_id not in room_ids:
+def join_room(request: JoinRoomRequest):
+    if request.room_id not in room_ids:
         raise HTTPException(status_code=400, detail="Room ID not found!")
-    return {"code": room_id}
+    return {"code": request.room_id}
 
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(ws: WebSocket, room_id: str):
     await ws.accept()
-    rooms[room_id].addPlayer(1)
-    print(rooms[room_id].numPlayers())
+    playerName = await ws.receive_text()
+    rooms[room_id].addPlayer(playerName)
     try:
         while True:
             data = await ws.receive_json()
             await ws.send_json(data)
     except WebSocketDisconnect:
-        rooms[room_id].addPlayer(-1)
-        print(rooms[room_id].numPlayers())
+        rooms[room_id].removePlayer(playerName)
