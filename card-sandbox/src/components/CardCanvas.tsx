@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from "react";
 import { drawCard, drawTable } from "../utils/canvasUtils";
+import { vecAdd, vecSub } from "../utils/math";
+import Camera from "../utils/camera";
 
-// Define Card type
 interface Card {
     x: number;
     y: number;
@@ -10,133 +11,151 @@ interface Card {
     faceUp?: boolean;
 }
 
-// Props type for CardCanvas
 interface CardCanvasProps {
     cards: Card[];
 }
 
-// Camera state type
-interface CameraState {
-    x: number;
-    y: number;
-    zoom: number;
-    vx: number;
-    vy: number;
-}
-
 const CardCanvas: React.FC<CardCanvasProps> = ({ cards }) => {
+    const dragStartRef = useRef<{ x: number; y: number } | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
     const [dimensions, setDimensions] = useState({
         width: window.innerWidth,
         height: window.innerHeight,
     });
 
-    const [dragging, setDragging] = useState(false);
-    const dragStart = useRef<{ x: number; y: number } | null>(null);
+    const [camera, setCamera] = useState(new Camera(0.0, 0.0, 0.0, 0.0, 1.0));
 
+    const dimRef = useRef(dimensions);
     useEffect(() => {
-        window.addEventListener("wheel", handleWheel);
-        window.addEventListener("mouseup", handleMouseUp);
-        window.addEventListener("mousedown", handleMouseDown);
-        window.addEventListener("mousemove", handleMouseMove);
-        return () => {
-            window.removeEventListener("wheel", handleWheel);
-            window.removeEventListener("mouseup", handleMouseUp);
-            window.removeEventListener("mousedown", handleMouseDown);
-            window.removeEventListener("mousemove", handleMouseMove);
-        };
-    }, []);
+        dimRef.current = dimensions;
+    }, [dimensions]);
+    const camRef = useRef(camera);
+    useEffect(() => {
+        camRef.current = camera;
+    }, [camera]);
 
-    // Update canvas dimensions when the window resizes
+    // Inertia effect
     useEffect(() => {
-        const handleResize = () => {
-            setDimensions({
-                width: window.innerWidth,
-                height: window.innerHeight,
+        console.log(camera);
+        if (!dragStartRef.current && (camera.vx !== 0 || camera.vy !== 0)) {
+            const animation = requestAnimationFrame(() => {
+                setCamera((prev) => prev.updateInertia());
             });
-        };
+            return () => cancelAnimationFrame(animation);
+        }
+    }, [camera]);
 
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
-    }, []);
-
-    // Draw the canvas content
+    // paint
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        // Set canvas dimensions
         canvas.width = dimensions.width;
         canvas.height = dimensions.height;
 
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        // Clear the canvas
         ctx.clearRect(0, 0, dimensions.width, dimensions.height);
-
-        // Draw table background
-        drawTable(ctx, dimensions);
-
-        // Apply camera transformations
         ctx.save();
 
-        // Draw all cards
+        ctx.setTransform(camera.worldToScreen(dimensions));
+        drawTable(ctx, dimensions);
+
         cards.forEach((card) => {
             drawCard(ctx, card, card.x, card.y, card.faceUp !== false);
         });
 
         ctx.restore();
-    }, [cards, dimensions]);
+    }, [cards, dimensions, camera]);
+
+    const handleResize = () => {
+        setDimensions({
+            width: window.innerWidth,
+            height: window.innerHeight,
+        });
+    };
 
     const handleWheel = (e: WheelEvent) => {
         e.preventDefault();
     };
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+        const speed = 20 / camera.zoom;
+        switch (e.key) {
+            case "ArrowUp":
+                setCamera((prev) =>
+                    prev.updatePosition({ x: prev.x, y: prev.y + speed }),
+                );
+                break;
+            case "ArrowDown":
+                setCamera((prev) =>
+                    prev.updatePosition({ x: prev.x, y: prev.y - speed }),
+                );
+                break;
+            case "ArrowLeft":
+                setCamera((prev) =>
+                    prev.updatePosition({ x: prev.x - speed, y: prev.y }),
+                );
+                break;
+            case "ArrowRight":
+                setCamera((prev) =>
+                    prev.updatePosition({ x: prev.x + speed, y: prev.y }),
+                );
+                break;
+            case "i":
+                setCamera((prev) => prev.zoomBy(1.111112));
+                break;
+            case "o":
+                setCamera((prev) => prev.zoomBy(0.9));
+                break;
+            default:
+                break;
+        }
+    };
+
     const handleMouseDown = (e: MouseEvent) => {
-        setDragging(true);
-        dragStart.current = { x: e.clientX, y: e.clientY };
-        //setCamera((prev) => ({ ...prev, vx: 0, vy: 0 })); // Reset inertia
+        const dimensions = dimRef.current;
+        const camera = camRef.current;
+        dragStartRef.current = camera.screenToWorld(dimensions).transformPoint(e);
+        setCamera((prev) => prev.resetInertia()); // Reset inertia
+    };
+
+    const handleMouseUp = () => {
+        dragStartRef.current = null;
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-        console.log("mouse moved");
-        if (!dragging) return;
-        //const dx = e.clientX - dragStart.current.x;
-        //const dy = e.clientY - dragStart.current.y;
-        //setCamera((prev) => ({
-        //    ...prev,
-        //    x: prev.x - dx,
-        //    y: prev.y - dy,
-        //    vx: dx,
-        //    vy: dy,
-        //}));
-        //dragStart.current = { x: e.clientX, y: e.clientY };
+        if (!dragStartRef.current) return;
+        const dragPos = dragStartRef.current;
+
+        const dimensions = dimRef.current;
+        const camera = camRef.current;
+        const currentPos = camera.screenToWorld(dimensions).transformPoint(e);
+
+        console.log(vecSub(currentPos, dragPos));
+
+        setCamera((prev) => prev.translate(vecSub(dragPos, currentPos)));
     };
 
-    const handleMouseUp = () => setDragging(false);
-
-    // Inertia effect
+    // attach handlers
     useEffect(() => {
-        //if (!dragging && (camera.vx !== 0 || camera.vy !== 0)) {
-            //const friction = 0.95;
-            //const animation = requestAnimationFrame(() => {
-            //    setCamera((prev) => ({
-            //        ...prev,
-            //        x: prev.x - prev.vx,
-            //        y: prev.y - prev.vy,
-            //        vx: prev.vx * friction,
-            //        vy: prev.vy * friction,
-            //    }));
-            //});
-
-            //if (Math.abs(camera.vx) < 0.1 && Math.abs(camera.vy) < 0.1) {
-            //    setCamera((prev) => ({ ...prev, vx: 0, vy: 0 }));
-            //}
-
-            //return () => cancelAnimationFrame(animation);
-        //}
-    }, [dragging]);
+        window.addEventListener("resize", handleResize);
+        window.addEventListener("wheel", handleWheel);
+        window.addEventListener("mouseup", handleMouseUp);
+        window.addEventListener("mousedown", handleMouseDown);
+        window.addEventListener("mousemove", handleMouseMove);
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("resize", handleResize);
+            window.removeEventListener("wheel", handleWheel);
+            window.removeEventListener("mouseup", handleMouseUp);
+            window.removeEventListener("mousedown", handleMouseDown);
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, []);
 
     return <canvas ref={canvasRef} className="w-full h-full block" />;
 };
