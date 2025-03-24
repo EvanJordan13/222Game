@@ -3,6 +3,9 @@ import { drawCard, drawTable } from "../utils/canvasUtils";
 import { vecAdd, vecSub } from "../utils/math";
 import Camera from "../utils/camera";
 
+
+const ZOOM_INTENSITY = 1.001;
+
 interface Card {
     x: number;
     y: number;
@@ -24,7 +27,7 @@ const CardCanvas: React.FC<CardCanvasProps> = ({ cards }) => {
         height: window.innerHeight,
     });
 
-    const [camera, setCamera] = useState(new Camera(0.0, 0.0, 0.0, 0.0, 1.0));
+    const [camera, setCamera] = useState(Camera.new());
 
     const dimRef = useRef(dimensions);
     useEffect(() => {
@@ -37,8 +40,7 @@ const CardCanvas: React.FC<CardCanvasProps> = ({ cards }) => {
 
     // Inertia effect
     useEffect(() => {
-        console.log(camera);
-        if (!dragStartRef.current && (camera.vx !== 0 || camera.vy !== 0)) {
+        if (!dragStartRef.current && camera.hasInertia()) {
             const animation = requestAnimationFrame(() => {
                 setCamera((prev) => prev.updateInertia());
             });
@@ -78,7 +80,11 @@ const CardCanvas: React.FC<CardCanvasProps> = ({ cards }) => {
     };
 
     const handleWheel = (e: WheelEvent) => {
-        e.preventDefault();
+        const dimensions = dimRef.current;
+        setCamera(prev => {
+            const zoomOrigin = prev.screenToWorld(dimensions).transformPoint(e);
+            return prev.zoomBy(ZOOM_INTENSITY ** e.deltaY, zoomOrigin);
+        })
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -86,22 +92,22 @@ const CardCanvas: React.FC<CardCanvasProps> = ({ cards }) => {
         switch (e.key) {
             case "ArrowUp":
                 setCamera((prev) =>
-                    prev.updatePosition({ x: prev.x, y: prev.y + speed }),
+                    prev.updatePosition({ x: prev.position.x, y: prev.position.y + speed }),
                 );
                 break;
             case "ArrowDown":
                 setCamera((prev) =>
-                    prev.updatePosition({ x: prev.x, y: prev.y - speed }),
+                    prev.updatePosition({ x: prev.position.x, y: prev.position.y - speed }),
                 );
                 break;
             case "ArrowLeft":
                 setCamera((prev) =>
-                    prev.updatePosition({ x: prev.x - speed, y: prev.y }),
+                    prev.updatePosition({ x: prev.position.x - speed, y: prev.position.y }),
                 );
                 break;
             case "ArrowRight":
                 setCamera((prev) =>
-                    prev.updatePosition({ x: prev.x + speed, y: prev.y }),
+                    prev.updatePosition({ x: prev.position.x + speed, y: prev.position.y }),
                 );
                 break;
             case "i":
@@ -119,7 +125,7 @@ const CardCanvas: React.FC<CardCanvasProps> = ({ cards }) => {
         const dimensions = dimRef.current;
         const camera = camRef.current;
         dragStartRef.current = camera.screenToWorld(dimensions).transformPoint(e);
-        setCamera((prev) => prev.resetInertia()); // Reset inertia
+        setCamera((prev) => prev.resetInertia());
     };
 
     const handleMouseUp = () => {
@@ -127,14 +133,12 @@ const CardCanvas: React.FC<CardCanvasProps> = ({ cards }) => {
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-        if (!dragStartRef.current) return;
+        if (!dragStartRef.current) return; // return if we are not dragging
         const dragPos = dragStartRef.current;
 
         const dimensions = dimRef.current;
         const camera = camRef.current;
         const currentPos = camera.screenToWorld(dimensions).transformPoint(e);
-
-        console.log(vecSub(currentPos, dragPos));
 
         setCamera((prev) => prev.translate(vecSub(dragPos, currentPos)));
     };

@@ -1,4 +1,4 @@
-type Vec = { x: number, y: number };
+export type Vec = { x: number, y: number };
 
 
 export function vecAdd(

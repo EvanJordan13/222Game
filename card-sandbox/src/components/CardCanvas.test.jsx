@@ -12,11 +12,13 @@ jest.mock("../utils/canvasUtils", () => ({
 // Mock canvas getContext
 const mockGetContext = jest.fn();
 const mockClearRect = jest.fn();
+const mockSave = jest.fn();
 
 // Mock canvas setup
 HTMLCanvasElement.prototype.getContext = function () {
   return {
     clearRect: mockClearRect,
+    save: mockSave,
   };
 };
 
@@ -89,6 +91,6 @@ describe("CardCanvas Component", () => {
     fireEvent(window, new Event("resize"));
 
     // Check if drawTable was called with new dimensions
-    expect(drawTable).toHaveBeenCalledWith(expect.anything(), 1024, 768);
+    expect(drawTable).toHaveBeenCalledWith(expect.anything(), { x: 1024, y: 768 });
   });
 });

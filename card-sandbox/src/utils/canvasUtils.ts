@@ -34,12 +34,23 @@ export const drawTable = (
     const bottomRight = screenToWorld.transformPoint(new DOMPoint(width, height));
 
     // predict how many grid points will be rendered because we do not want to render too many
-    let points_pred = (bottomRight.x - topLeft.x) / TABLE_GRID_SIZE * (topLeft.y - bottomRight.y) / TABLE_GRID_SIZE;
+    let points_pred =
+        (((bottomRight.x - topLeft.x) / TABLE_GRID_SIZE) *
+            (topLeft.y - bottomRight.y)) /
+        TABLE_GRID_SIZE;
     let dots = 0;
     if (points_pred <= TABLE_MAX_GRIDPOINTS) {
         ctx.fillStyle = "#0a7c2e";
-        for (let x = Math.ceil(topLeft.x / TABLE_GRID_SIZE); x * TABLE_GRID_SIZE < bottomRight.x; ++x) {
-            for (let y = Math.floor(topLeft.y / TABLE_GRID_SIZE); y * TABLE_GRID_SIZE >= bottomRight.y; --y) {
+        for (
+            let x = Math.ceil(topLeft.x / TABLE_GRID_SIZE);
+            x * TABLE_GRID_SIZE < bottomRight.x;
+            ++x
+        ) {
+            for (
+                let y = Math.floor(topLeft.y / TABLE_GRID_SIZE);
+                y * TABLE_GRID_SIZE >= bottomRight.y;
+                --y
+            ) {
                 ctx.beginPath();
                 ctx.arc(x * TABLE_GRID_SIZE, y * TABLE_GRID_SIZE, 1, 0, Math.PI * 2);
                 ctx.fill();
@@ -47,9 +58,6 @@ export const drawTable = (
             }
         }
     }
-
-    //console.log("dots rendered: ", dots);
-    console.log("pred rendered: ", points_pred);
 
     ctx.save();
     ctx.resetTransform();
@@ -68,10 +76,9 @@ export const drawCard = (
     faceUp: boolean = true,
     selected: boolean = false,
 ): void => {
-
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(1.0, -1.0)
+    ctx.scale(1.0, -1.0);
     ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
     ctx.beginPath();
     roundedRect(ctx, 3, 3, CARD_WIDTH, CARD_HEIGHT, CARD_RADIUS);
@@ -100,11 +107,7 @@ export const drawCard = (
 
         ctx.font = "48px Arial";
         ctx.textAlign = "center";
-        ctx.fillText(
-            getSuitSymbol(suit),
-            CARD_WIDTH / 2,
-            CARD_HEIGHT / 2 + 10,
-        );
+        ctx.fillText(getSuitSymbol(suit), CARD_WIDTH / 2, CARD_HEIGHT / 2 + 10);
 
         ctx.font = "24px Arial";
         ctx.textAlign = "right";
@@ -114,7 +117,6 @@ export const drawCard = (
     } else {
         drawCardBackPattern(ctx, 0, 0);
     }
-
 
     ctx.restore();
 };
