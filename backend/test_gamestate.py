@@ -222,3 +222,28 @@ def test_room_draw_card_new():
     assert len(new_room.hands["player1"].cards) == 1
     assert new_room.hands["player1"].cards[0].card_front == "3"  # drew from top
 
+def test_initialize_standard52_deck_creates_new_room():
+    original_room = Room()  # No decks initially
+
+    # Call initialize_deck to create the new room with a 52-card deck
+    new_room = original_room.initialize_deck(deck_type="standard52")
+
+    # Original room should be unchanged
+    assert len(original_room.decks) == 0
+
+    # New room should contain one new deck
+    assert len(new_room.decks) == 1
+
+    # Get the deck and check its contents
+    deck_id = next(iter(new_room.decks))
+    deck = new_room.decks[deck_id]
+
+    assert len(deck.cards) == 52
+
+    # Ensure card fronts are unique and correctly formatted
+    card_fronts = [card.card_front for card in deck.cards]
+    assert len(set(card_fronts)) == 52
+    assert "H2" in card_fronts
+    assert "DJ" in card_fronts
+    assert "SA" in card_fronts
+    assert "C10" in card_fronts
