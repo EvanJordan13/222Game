@@ -1,4 +1,6 @@
 import React from "react";
+import { Box, Chip, Divider, Paper, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 const GameHUD = ({ cards, selectedCardIndex }) => {
   const totalCards = cards.length;
@@ -29,101 +31,138 @@ const GameHUD = ({ cards, selectedCardIndex }) => {
     return `${rankName} of ${suitName}`;
   };
 
-  // Get suit symbol
-  const getSuitSymbol = (suit) => {
+  // Get suit symbol and color
+  const getSuitDisplay = (suit) => {
+    let symbol = "";
+    let color = "";
+
     switch (suit) {
       case "hearts":
-        return "♥";
+        symbol = "♥";
+        color = "#e53e3e";
+        break;
       case "diamonds":
-        return "♦";
+        symbol = "♦";
+        color = "#e53e3e";
+        break;
       case "clubs":
-        return "♣";
+        symbol = "♣";
+        color = "#1a202c";
+        break;
       case "spades":
-        return "♠";
+        symbol = "♠";
+        color = "#1a202c";
+        break;
       default:
-        return "";
+        symbol = "";
+        color = "#1a202c";
     }
+
+    return { symbol, color };
   };
 
   return (
-    <div
-      style={{
+    <Paper
+      elevation={3}
+      sx={{
         position: "absolute",
-        left: "20px",
-        bottom: "20px",
-        backgroundColor: "rgba(31, 41, 55, 0.9)",
+        left: 20,
+        bottom: 20,
+        backgroundColor: alpha("#1f2937", 0.9),
         color: "white",
-        padding: "12px",
-        borderRadius: "6px",
-        boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-        zIndex: 10,
+        p: 2,
+        borderRadius: 2,
+        minWidth: 300,
+        zIndex: 1200,
       }}
     >
-      <div style={{ display: "flex", gap: "24px" }}>
-        <div>
-          <span style={{ color: "#9ca3af", fontSize: "14px" }}>Cards:</span>
-          <span style={{ marginLeft: "8px", fontWeight: 500 }}>
+      <Box sx={{ display: "flex", gap: 3 }}>
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            Cards
+          </Typography>
+          <Typography variant="body1" fontWeight="medium">
             {totalCards}
-          </span>
-        </div>
-        <div>
-          <span style={{ color: "#9ca3af", fontSize: "14px" }}>Face Up:</span>
-          <span style={{ marginLeft: "8px", fontWeight: 500 }}>
+          </Typography>
+        </Box>
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            Face Up
+          </Typography>
+          <Typography variant="body1" fontWeight="medium">
             {faceUpCards}
-          </span>
-        </div>
-        <div>
-          <span style={{ color: "#9ca3af", fontSize: "14px" }}>Face Down:</span>
-          <span style={{ marginLeft: "8px", fontWeight: 500 }}>
+          </Typography>
+        </Box>
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            Face Down
+          </Typography>
+          <Typography variant="body1" fontWeight="medium">
             {totalCards - faceUpCards}
-          </span>
-        </div>
-      </div>
+          </Typography>
+        </Box>
+      </Box>
 
       {selectedCard && (
-        <div
-          style={{
-            marginTop: "8px",
-            paddingTop: "8px",
-            borderTop: "1px solid #374151",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <span style={{ color: "#9ca3af", fontSize: "14px" }}>
-              Selected:
-            </span>
-            <span style={{ marginLeft: "8px", fontWeight: 500 }}>
-              {formatCardInfo(selectedCard)}
-              <span
-                style={{
-                  marginLeft: "8px",
-                  color:
-                    selectedCard.suit === "hearts" ||
-                    selectedCard.suit === "diamonds"
-                      ? "#ef4444"
-                      : "#ffffff",
-                }}
+        <>
+          <Divider sx={{ my: 1.5, borderColor: alpha("#fff", 0.2) }} />
+          <Box>
+            <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mr: 1 }}
               >
-                {getSuitSymbol(selectedCard.suit)}
-              </span>
-            </span>
-          </div>
-          <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
-            <span>
-              Position: X: {Math.round(selectedCard.x)}, Y:{" "}
-              {Math.round(selectedCard.y)}
-            </span>
-            <span style={{ marginLeft: "16px" }}>
-              Face {selectedCard.faceUp ? "Up" : "Down"}
-            </span>
-          </div>
-        </div>
+                Selected:
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ display: "flex", alignItems: "center" }}
+              >
+                {formatCardInfo(selectedCard)}
+                <Box
+                  component="span"
+                  sx={{
+                    ml: 1,
+                    color: getSuitDisplay(selectedCard.suit).color,
+                    fontSize: "1.2rem",
+                    lineHeight: 1,
+                  }}
+                >
+                  {getSuitDisplay(selectedCard.suit).symbol}
+                </Box>
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <Typography variant="caption" color="text.secondary">
+                Position: X: {Math.round(selectedCard.x)}, Y:{" "}
+                {Math.round(selectedCard.y)}
+              </Typography>
+              <Chip
+                label={selectedCard.faceUp ? "Face Up" : "Face Down"}
+                size="small"
+                variant="outlined"
+                sx={{
+                  height: 20,
+                  "& .MuiChip-label": {
+                    px: 1,
+                    fontSize: "0.65rem",
+                    color: selectedCard.faceUp ? "#4caf50" : "#ff9800",
+                  },
+                  borderColor: selectedCard.faceUp ? "#4caf50" : "#ff9800",
+                }}
+              />
+            </Box>
+          </Box>
+        </>
       )}
 
-      <div style={{ marginTop: "8px", fontSize: "12px", color: "#9ca3af" }}>
-        <span>Double-click to flip cards • Drag to move</span>
-      </div>
-    </div>
+      <Divider sx={{ my: 1.5, borderColor: alpha("#fff", 0.2) }} />
+      <Typography variant="caption" color="text.secondary">
+        Double-click to flip cards • Drag to move
+      </Typography>
+    </Paper>
   );
 };
 

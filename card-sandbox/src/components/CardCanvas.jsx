@@ -40,7 +40,7 @@ const CardCanvas = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Convert screen coordinates to world coordinates
+  // convert screen coordinates to world coordinates
   const screenToWorld = useCallback(
     (screenX, screenY) => {
       return {
@@ -64,7 +64,7 @@ const CardCanvas = ({
   // Find the top card at a given position
   const findCardAtPosition = useCallback(
     (x, y) => {
-      // Iterate in reverse to check topmost cards first
+      //go in reverse to check top cards first fi stacked
       for (let i = cards.length - 1; i >= 0; i--) {
         if (isPointInCard(x, y, cards[i].x, cards[i].y)) {
           return i;
@@ -115,10 +115,10 @@ const CardCanvas = ({
 
     const cardIndex = findCardAtPosition(worldPos.x, worldPos.y);
 
-    // Check for double-click to flip card
+    // Check for double click to flip card
     const now = Date.now();
     if (cardIndex !== null && now - lastClickTime < 300) {
-      // Double-click detected
+      // Double clicked!
       if (onCardFlip) {
         onCardFlip(cardIndex);
       }
@@ -141,18 +141,18 @@ const CardCanvas = ({
       setSelectedCardIndex(cardIndex);
       setIsDraggingCard(true);
 
-      // Notify parent component about selection
+      // set that there was a selection
       if (onCardSelect) {
         onCardSelect(cardIndex);
       }
 
-      // Store the offset from the card's origin
+      // Store the offset from the card  origin
       setCardOffset({
         x: worldPos.x - cards[cardIndex].x,
         y: worldPos.y - cards[cardIndex].y,
       });
     } else {
-      // Clicked on the background - pan the camera
+      // Clicked on the background so wepan the camera
       setDragging(true);
       dragStart.current = { x: e.clientX, y: e.clientY };
       setCamera((prev) => ({ ...prev, vx: 0, vy: 0 })); // Reset inertia
@@ -208,23 +208,18 @@ const CardCanvas = ({
   const handleWheel = (e) => {
     const zoomIntensity = 0.1;
     const rect = canvasRef.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const mouseX = (e.clientX - rect.left) / camera.zoom + camera.x;
+    const mouseY = (e.clientY - rect.top) / camera.zoom + camera.y;
 
-    // Convert mouse position to world space before zoom
-    const worldPos = screenToWorld(mouseX, mouseY);
-
-    // Calculate new zoom level
     const newZoom =
       camera.zoom * (e.deltaY > 0 ? 1 - zoomIntensity : 1 + zoomIntensity);
     const clampedZoom = Math.max(0.5, Math.min(2, newZoom));
 
-    // Update camera position to zoom toward mouse
     setCamera((prev) => ({
       ...prev,
       zoom: clampedZoom,
-      x: worldPos.x - (mouseX - dimensions.width / 2) / clampedZoom,
-      y: worldPos.y - (mouseY - dimensions.height / 2) / clampedZoom,
+      x: mouseX - (mouseX - prev.x) * (clampedZoom / prev.zoom),
+      y: mouseY - (mouseY - prev.y) * (clampedZoom / prev.zoom),
     }));
 
     e.preventDefault();
@@ -250,7 +245,7 @@ const CardCanvas = ({
     }
   };
 
-  // Inertia effect for camera panning
+  // Inertia effect
   useEffect(() => {
     if (!dragging && (camera.vx !== 0 || camera.vy !== 0)) {
       const friction = 0.95;

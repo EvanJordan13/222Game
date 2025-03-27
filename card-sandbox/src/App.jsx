@@ -1,7 +1,41 @@
 import React, { useState } from "react";
+import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
 import CardCanvas from "./components/CardCanvas";
 import GameUI from "./components/GameUI";
 import GameHUD from "./components/GameHUD";
+
+// Create dark theme
+const darkTheme = createTheme({
+  palette: {
+    mode: "dark",
+    primary: {
+      main: "#3f51b5",
+    },
+    secondary: {
+      main: "#5c6bc0",
+    },
+    background: {
+      default: "#1a202c",
+      paper: "#2d3748",
+    },
+    error: {
+      main: "#f44336",
+    },
+    success: {
+      main: "#4caf50",
+    },
+  },
+  typography: {
+    fontFamily: [
+      "Roboto",
+      "-apple-system",
+      "BlinkMacSystemFont",
+      '"Segoe UI"',
+      "Arial",
+      "sans-serif",
+    ].join(","),
+  },
+});
 
 const App = () => {
   const [cards, setCards] = useState([
@@ -224,39 +258,41 @@ const App = () => {
   };
 
   return (
-    <div
-      className="bg-gray-900"
-      style={{
-        width: "100vw",
-        height: "100vh",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* The canvas container */}
+    <ThemeProvider theme={darkTheme}>
+      <CssBaseline />
       <div
-        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        style={{
+          width: "100vw",
+          height: "100vh",
+          position: "relative",
+          overflow: "hidden",
+        }}
       >
-        <CardCanvas
-          cards={cards}
-          onCardMove={handleCardMove}
-          onCardFlip={handleCardFlip}
-          onCardSelect={handleCardSelect}
-          onDeselectCard={handleDeselectCard}
+        {/* Canvas container */}
+        <div
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        >
+          <CardCanvas
+            cards={cards}
+            onCardMove={handleCardMove}
+            onCardFlip={handleCardFlip}
+            onCardSelect={handleCardSelect}
+            onDeselectCard={handleDeselectCard}
+          />
+        </div>
+
+        {/* UI Components */}
+        <GameHUD cards={cards} selectedCardIndex={selectedCardIndex} />
+
+        <GameUI
+          onAddCard={handleAddCard}
+          onDealCards={handleDealCards}
+          onClearTable={handleClearTable}
+          onSavePreset={handleSavePreset}
+          onLoadPreset={handleLoadPreset}
         />
       </div>
-
-      {/* UI Elements */}
-      <GameUI
-        onAddCard={handleAddCard}
-        onDealCards={handleDealCards}
-        onClearTable={handleClearTable}
-        onSavePreset={handleSavePreset}
-        onLoadPreset={handleLoadPreset}
-      />
-
-      <GameHUD cards={cards} selectedCardIndex={selectedCardIndex} />
-    </div>
+    </ThemeProvider>
   );
 };
 

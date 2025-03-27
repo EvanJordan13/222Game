@@ -1,12 +1,59 @@
 import React, { useState } from "react";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Settings,
-  Save,
-  Plus,
-  Trash,
-} from "lucide-react";
+  Box,
+  Button,
+  Checkbox,
+  Drawer,
+  FormControlLabel,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  FormControl,
+} from "@mui/material";
+import { styled } from "@mui/material/styles";
+import {
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Save as SaveIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  Settings as SettingsIcon,
+} from "@mui/icons-material";
+
+// Styled components
+const DrawerHeader = styled("div")(({ theme }) => ({
+  display: "flex",
+  alignItems: "center",
+  padding: theme.spacing(0, 1),
+  ...theme.mixins.toolbar,
+  justifyContent: "space-between",
+  backgroundColor: theme.palette.primary.main,
+  color: theme.palette.primary.contrastText,
+}));
+
+const TabPanel = ({ children, value, index, ...other }) => {
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`panel-${index}`}
+      aria-labelledby={`tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  );
+};
 
 const GameUI = ({
   onAddCard,
@@ -16,8 +63,8 @@ const GameUI = ({
   onLoadPreset,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState("cards");
-  const [presets] = useState([
+  const [activeTab, setActiveTab] = useState(0);
+  const [presets, setPresets] = useState([
     { id: 1, name: "Poker", description: "Standard 5-card draw poker" },
     { id: 2, name: "Solitaire", description: "Classic solitaire setup" },
     { id: 3, name: "Blackjack", description: "Casino-style blackjack" },
@@ -31,6 +78,10 @@ const GameUI = ({
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
   };
 
   const handleAddCard = () => {
@@ -59,453 +110,335 @@ const GameUI = ({
         name: newPresetName,
         description: "Custom user preset",
       };
+      setPresets([...presets, newPreset]);
       setNewPresetName("");
       onSavePreset(newPreset);
     }
   };
 
-  return (
-    <div
-      style={{
-        position: "absolute",
-        top: 0,
-        right: 0,
-        height: "100%",
-        display: "flex",
-        zIndex: 10,
+  const handleLoadPreset = (preset) => {
+    if (onLoadPreset) {
+      onLoadPreset(preset);
+    }
+  };
+
+  // Toggle button outside drawer
+  const toggleButton = (
+    <IconButton
+      onClick={toggleMenu}
+      sx={{
+        position: "fixed",
+        right: isMenuOpen ? 320 : 0,
+        top: "50%",
+        transform: "translateY(-50%)",
+        backgroundColor: "primary.main",
+        color: "white",
+        transition: "right 0.3s",
+        borderTopRightRadius: isMenuOpen ? 4 : 0,
+        borderBottomRightRadius: isMenuOpen ? 4 : 0,
+        borderTopLeftRadius: isMenuOpen ? 0 : 4,
+        borderBottomLeftRadius: isMenuOpen ? 0 : 4,
+        "&:hover": {
+          backgroundColor: "primary.dark",
+        },
+        zIndex: 1300,
       }}
     >
-      {/* Toggle button */}
-      <button
-        onClick={toggleMenu}
-        style={{
-          backgroundColor: "#1f2937",
-          color: "white",
-          width: "30px",
-          alignSelf: "center",
-          padding: "10px 0",
-          display: "flex",
-          justifyContent: "center",
-          borderTopLeftRadius: "5px",
-          borderBottomLeftRadius: "5px",
-          boxShadow: "0 0 10px rgba(0,0,0,0.5)",
+      {isMenuOpen ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+    </IconButton>
+  );
+
+  return (
+    <>
+      {toggleButton}
+      <Drawer
+        variant="persistent"
+        anchor="right"
+        open={isMenuOpen}
+        sx={{
+          width: 320,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: 320,
+            boxSizing: "border-box",
+            backgroundColor: "background.paper",
+          },
+          zIndex: 1200,
         }}
       >
-        {isMenuOpen ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-      </button>
+        <DrawerHeader>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, pl: 1 }}>
+            Card Game Sandbox
+          </Typography>
+        </DrawerHeader>
 
-      {/* Panel */}
-      {isMenuOpen && (
-        <div
-          style={{
-            backgroundColor: "#1f2937",
-            color: "white",
-            width: "300px",
-            height: "100%",
-            overflowY: "auto",
-            boxShadow: "0 0 10px rgba(0,0,0,0.5)",
-          }}
-        >
-          <div style={{ padding: "16px", borderBottom: "1px solid #374151" }}>
-            <h2 style={{ fontSize: "20px", fontWeight: "bold" }}>
-              Card Game Sandbox
-            </h2>
-          </div>
+        <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            aria-label="game options tabs"
+            variant="fullWidth"
+          >
+            <Tab label="Cards" id="tab-0" aria-controls="panel-0" />
+            <Tab label="Presets" id="tab-1" aria-controls="panel-1" />
+            <Tab
+              label={
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <SettingsIcon sx={{ mr: 0.5, fontSize: 18 }} />
+                  <span>Settings</span>
+                </Box>
+              }
+              id="tab-2"
+              aria-controls="panel-2"
+            />
+          </Tabs>
+        </Box>
 
-          {/* Tabs */}
-          <div style={{ display: "flex", borderBottom: "1px solid #374151" }}>
-            <button
-              style={{
-                padding: "8px 16px",
-                flexGrow: 1,
-                backgroundColor:
-                  activeTab === "cards" ? "#374151" : "transparent",
+        {/* Cards Tab */}
+        <TabPanel value={activeTab} index={0}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle1" sx={{ mb: 1 }}>
+              Add Card
+            </Typography>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 2,
+                mb: 2,
               }}
-              onClick={() => setActiveTab("cards")}
             >
-              Cards
-            </button>
-            <button
-              style={{
-                padding: "8px 16px",
-                flexGrow: 1,
-                backgroundColor:
-                  activeTab === "presets" ? "#374151" : "transparent",
+              <FormControl fullWidth size="small">
+                <InputLabel id="suit-select-label">Suit</InputLabel>
+                <Select
+                  labelId="suit-select-label"
+                  value={cardOptions.suit}
+                  label="Suit"
+                  onChange={(e) =>
+                    setCardOptions({ ...cardOptions, suit: e.target.value })
+                  }
+                >
+                  <MenuItem value="hearts">Hearts</MenuItem>
+                  <MenuItem value="diamonds">Diamonds</MenuItem>
+                  <MenuItem value="clubs">Clubs</MenuItem>
+                  <MenuItem value="spades">Spades</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth size="small">
+                <InputLabel id="rank-select-label">Rank</InputLabel>
+                <Select
+                  labelId="rank-select-label"
+                  value={cardOptions.rank}
+                  label="Rank"
+                  onChange={(e) =>
+                    setCardOptions({ ...cardOptions, rank: e.target.value })
+                  }
+                >
+                  <MenuItem value="ace">Ace</MenuItem>
+                  <MenuItem value="2">2</MenuItem>
+                  <MenuItem value="3">3</MenuItem>
+                  <MenuItem value="4">4</MenuItem>
+                  <MenuItem value="5">5</MenuItem>
+                  <MenuItem value="6">6</MenuItem>
+                  <MenuItem value="7">7</MenuItem>
+                  <MenuItem value="8">8</MenuItem>
+                  <MenuItem value="9">9</MenuItem>
+                  <MenuItem value="10">10</MenuItem>
+                  <MenuItem value="jack">Jack</MenuItem>
+                  <MenuItem value="queen">Queen</MenuItem>
+                  <MenuItem value="king">King</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={cardOptions.faceUp}
+                  onChange={(e) =>
+                    setCardOptions({ ...cardOptions, faceUp: e.target.checked })
+                  }
+                />
+              }
+              label="Face Up"
+              sx={{ mb: 2 }}
+            />
+
+            <Button
+              variant="contained"
+              fullWidth
+              startIcon={<AddIcon />}
+              onClick={handleAddCard}
+              sx={{ mb: 2 }}
+            >
+              Add Card
+            </Button>
+          </Box>
+
+          <Divider sx={{ my: 2 }} />
+
+          <Box>
+            <Typography variant="subtitle1" sx={{ mb: 1 }}>
+              Quick Actions
+            </Typography>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 2,
+                mb: 2,
               }}
-              onClick={() => setActiveTab("presets")}
             >
-              Presets
-            </button>
-            <button
-              style={{
-                padding: "8px 16px",
-                flexGrow: 1,
-                backgroundColor:
-                  activeTab === "settings" ? "#374151" : "transparent",
-              }}
-              onClick={() => setActiveTab("settings")}
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => handleDealCards(5)}
+              >
+                Deal 5 Cards
+              </Button>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => handleDealCards(7)}
+              >
+                Deal 7 Cards
+              </Button>
+            </Box>
+            <Button
+              variant="contained"
+              color="error"
+              fullWidth
+              startIcon={<DeleteIcon />}
+              onClick={onClearTable}
             >
-              <Settings
-                size={16}
-                style={{ display: "inline", marginRight: "4px" }}
-              />{" "}
-              Settings
-            </button>
-          </div>
+              Clear Table
+            </Button>
+          </Box>
+        </TabPanel>
 
-          {/* Content */}
-          <div style={{ padding: "16px" }}>
-            {activeTab === "cards" && (
-              <div>
-                <div style={{ marginBottom: "16px" }}>
-                  <h3 style={{ fontWeight: "medium", marginBottom: "8px" }}>
-                    Add Card
-                  </h3>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "8px",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          fontSize: "14px",
-                          color: "#9ca3af",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        Suit
-                      </label>
-                      <select
-                        style={{
-                          width: "100%",
-                          backgroundColor: "#374151",
-                          borderRadius: "4px",
-                          padding: "8px",
-                        }}
-                        value={cardOptions.suit}
-                        onChange={(e) =>
-                          setCardOptions({
-                            ...cardOptions,
-                            suit: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="hearts">Hearts</option>
-                        <option value="diamonds">Diamonds</option>
-                        <option value="clubs">Clubs</option>
-                        <option value="spades">Spades</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          fontSize: "14px",
-                          color: "#9ca3af",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        Rank
-                      </label>
-                      <select
-                        style={{
-                          width: "100%",
-                          backgroundColor: "#374151",
-                          borderRadius: "4px",
-                          padding: "8px",
-                        }}
-                        value={cardOptions.rank}
-                        onChange={(e) =>
-                          setCardOptions({
-                            ...cardOptions,
-                            rank: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="ace">Ace</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5">5</option>
-                        <option value="6">6</option>
-                        <option value="7">7</option>
-                        <option value="8">8</option>
-                        <option value="9">9</option>
-                        <option value="10">10</option>
-                        <option value="jack">Jack</option>
-                        <option value="queen">Queen</option>
-                        <option value="king">King</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      id="faceUp"
-                      checked={cardOptions.faceUp}
-                      onChange={(e) =>
-                        setCardOptions({
-                          ...cardOptions,
-                          faceUp: e.target.checked,
-                        })
-                      }
-                      style={{ marginRight: "8px" }}
-                    />
-                    <label htmlFor="faceUp" style={{ fontSize: "14px" }}>
-                      Face Up
-                    </label>
-                  </div>
-                  <button
-                    style={{
-                      width: "100%",
-                      backgroundColor: "#2563eb",
-                      borderRadius: "4px",
-                      padding: "8px 0",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                    onClick={handleAddCard}
-                  >
-                    <Plus size={16} style={{ marginRight: "4px" }} /> Add Card
-                  </button>
-                </div>
-
-                <div>
-                  <h3 style={{ fontWeight: "medium", marginBottom: "8px" }}>
-                    Quick Actions
-                  </h3>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "8px",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    <button
-                      style={{
-                        backgroundColor: "#4f46e5",
-                        borderRadius: "4px",
-                        padding: "8px 0",
-                        fontSize: "14px",
-                      }}
-                      onClick={() => handleDealCards(5)}
-                    >
-                      Deal 5 Cards
-                    </button>
-                    <button
-                      style={{
-                        backgroundColor: "#4f46e5",
-                        borderRadius: "4px",
-                        padding: "8px 0",
-                        fontSize: "14px",
-                      }}
-                      onClick={() => handleDealCards(7)}
-                    >
-                      Deal 7 Cards
-                    </button>
-                  </div>
-                  <button
-                    style={{
-                      width: "100%",
-                      backgroundColor: "#dc2626",
-                      borderRadius: "4px",
-                      padding: "8px 0",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                    onClick={onClearTable}
-                  >
-                    <Trash size={16} style={{ marginRight: "4px" }} /> Clear
-                    Table
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "presets" && (
-              <div>
-                <div style={{ marginBottom: "16px" }}>
-                  <h3 style={{ fontWeight: "medium", marginBottom: "8px" }}>
-                    Load Preset
-                  </h3>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    {presets.map((preset) => (
-                      <div
-                        key={preset.id}
-                        style={{
-                          backgroundColor: "#374151",
-                          borderRadius: "4px",
-                          padding: "12px",
-                          cursor: "pointer",
-                        }}
-                        onClick={() => onLoadPreset(preset)}
-                      >
-                        <div style={{ fontWeight: "medium" }}>
-                          {preset.name}
-                        </div>
-                        <div style={{ fontSize: "14px", color: "#9ca3af" }}>
-                          {preset.description}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 style={{ fontWeight: "medium", marginBottom: "8px" }}>
-                    Save Current Setup
-                  </h3>
-                  <input
-                    type="text"
-                    placeholder="Preset name"
-                    value={newPresetName}
-                    onChange={(e) => setNewPresetName(e.target.value)}
-                    style={{
-                      width: "100%",
-                      backgroundColor: "#374151",
-                      borderRadius: "4px",
-                      padding: "8px",
-                      marginBottom: "8px",
-                    }}
+        {/* Presets Tab */}
+        <TabPanel value={activeTab} index={1}>
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Load Preset
+          </Typography>
+          <List sx={{ mb: 3 }}>
+            {presets.map((preset) => (
+              <Paper
+                key={preset.id}
+                elevation={1}
+                sx={{
+                  mb: 1,
+                  cursor: "pointer",
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                  },
+                }}
+                onClick={() => handleLoadPreset(preset)}
+              >
+                <ListItem>
+                  <ListItemText
+                    primary={preset.name}
+                    secondary={preset.description}
                   />
-                  <button
-                    style={{
-                      width: "100%",
-                      backgroundColor: "#059669",
-                      borderRadius: "4px",
-                      padding: "8px 0",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                    onClick={handleSavePreset}
-                  >
-                    <Save size={16} style={{ marginRight: "4px" }} /> Save
-                    Preset
-                  </button>
-                </div>
-              </div>
-            )}
+                </ListItem>
+              </Paper>
+            ))}
+          </List>
 
-            {activeTab === "settings" && (
-              <div>
-                <div style={{ marginBottom: "16px" }}>
-                  <h3 style={{ fontWeight: "medium", marginBottom: "8px" }}>
-                    Appearance
-                  </h3>
-                  <div style={{ marginBottom: "8px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        color: "#9ca3af",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      Table Color
-                    </label>
-                    <select
-                      style={{
-                        width: "100%",
-                        backgroundColor: "#374151",
-                        borderRadius: "4px",
-                        padding: "8px",
-                      }}
-                    >
-                      <option value="green">Green (Default)</option>
-                      <option value="blue">Blue</option>
-                      <option value="red">Red</option>
-                      <option value="black">Black</option>
-                    </select>
-                  </div>
-                </div>
+          <Divider sx={{ my: 2 }} />
 
-                <div style={{ marginBottom: "16px" }}>
-                  <h3 style={{ fontWeight: "medium", marginBottom: "8px" }}>
-                    Game Rules
-                  </h3>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      id="autoSort"
-                      style={{ marginRight: "8px" }}
-                    />
-                    <label htmlFor="autoSort" style={{ fontSize: "14px" }}>
-                      Auto-sort cards in hand
-                    </label>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <input
-                      type="checkbox"
-                      id="snapToGrid"
-                      style={{ marginRight: "8px" }}
-                    />
-                    <label htmlFor="snapToGrid" style={{ fontSize: "14px" }}>
-                      Snap cards to grid
-                    </label>
-                  </div>
-                </div>
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Save Current Setup
+          </Typography>
+          <TextField
+            fullWidth
+            size="small"
+            label="Preset name"
+            variant="outlined"
+            value={newPresetName}
+            onChange={(e) => setNewPresetName(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <Button
+            variant="contained"
+            color="success"
+            fullWidth
+            startIcon={<SaveIcon />}
+            onClick={handleSavePreset}
+          >
+            Save Preset
+          </Button>
+        </TabPanel>
 
-                <div>
-                  <h3 style={{ fontWeight: "medium", marginBottom: "8px" }}>
-                    Controls
-                  </h3>
-                  <div
-                    style={{
-                      backgroundColor: "#374151",
-                      borderRadius: "4px",
-                      padding: "12px",
-                      fontSize: "14px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: "8px",
-                      }}
-                    >
-                      <div>Pan Camera:</div>
-                      <div>Drag or Arrow Keys</div>
-                      <div>Move Card:</div>
-                      <div>Click + Drag</div>
-                      <div>Flip Card:</div>
-                      <div>Double Click</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+        {/* Settings Tab */}
+        <TabPanel value={activeTab} index={2}>
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Appearance
+          </Typography>
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel id="table-color-label">Table Color</InputLabel>
+            <Select
+              labelId="table-color-label"
+              defaultValue="green"
+              label="Table Color"
+            >
+              <MenuItem value="green">Green (Default)</MenuItem>
+              <MenuItem value="blue">Blue</MenuItem>
+              <MenuItem value="red">Red</MenuItem>
+              <MenuItem value="black">Black</MenuItem>
+            </Select>
+          </FormControl>
+
+          <FormControl fullWidth size="small" sx={{ mb: 3 }}>
+            <InputLabel id="card-back-label">Card Back</InputLabel>
+            <Select
+              labelId="card-back-label"
+              defaultValue="blue"
+              label="Card Back"
+            >
+              <MenuItem value="blue">Blue Pattern (Default)</MenuItem>
+              <MenuItem value="red">Red Pattern</MenuItem>
+              <MenuItem value="custom">Custom</MenuItem>
+            </Select>
+          </FormControl>
+
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Game Rules
+          </Typography>
+          <FormControlLabel
+            control={<Checkbox />}
+            label="Auto-sort cards in hand"
+            sx={{ display: "block", mb: 1 }}
+          />
+          <FormControlLabel
+            control={<Checkbox />}
+            label="Snap cards to grid"
+            sx={{ display: "block", mb: 3 }}
+          />
+
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Controls
+          </Typography>
+          <Paper elevation={1} sx={{ p: 2 }}>
+            <Box
+              sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}
+            >
+              <Typography variant="body2">Pan Camera:</Typography>
+              <Typography variant="body2">Drag or Arrow Keys</Typography>
+              <Typography variant="body2">Move Card:</Typography>
+              <Typography variant="body2">Click + Drag</Typography>
+              <Typography variant="body2">Flip Card:</Typography>
+              <Typography variant="body2">Double Click</Typography>
+            </Box>
+          </Paper>
+        </TabPanel>
+      </Drawer>
+    </>
   );
 };
 
