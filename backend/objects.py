@@ -23,7 +23,14 @@ class Deck:
 
     def remove_top(self, n=1) -> "Deck":
         deck = copy.copy(self)
+        deck.cards = copy.copy(deck.cards)
         deck.cards = deck.cards[:-n]
+        return deck
+    
+    def remove_bottom(self, n=1) -> "Deck":
+        deck = copy.copy(self)
+        deck.cards = copy.copy(deck.cards)
+        deck.cards = deck.cards[n:]
         return deck
     
     def add_top(self, card:"Card") -> "Deck":
@@ -32,14 +39,24 @@ class Deck:
         deck.cards.append(card)
         return deck
     
+    def move_deck(self, tuple_or_x, y=None) -> "Deck":
+        deck = copy.copy(self)
+        if isinstance(tuple_or_x, int):
+            deck.position = (tuple_or_x,y)
+        else:
+            deck.position = tuple_or_x
+        return deck
+
     ###
     ### Deck Inquires
     ###
-    def deck_peek(self, n=0, bottom = False) -> "Card":
+    def deck_peek(self, idx=0, bottom = False) -> "Card":
+        if idx >= len(self.cards):
+            return None
         if (bottom):
-            return copy.copy(self.cards[len(self.cards) - n])
+            return copy.copy(self.cards[idx])
         else:
-            return copy.copy(self.cards[n])
+            return copy.copy(self.cards[len(self.cards) - idx - 1])
 
 
 
@@ -68,6 +85,10 @@ class Hand:
     ###
     ### Hand Inquires
     ###
+    def hand_peek(self, n) -> "Card":
+        if n >= len(self.cards):
+            return None
+        return copy.copy(self.cards[n])
 
 @dataclass
 class Card:
