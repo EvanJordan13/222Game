@@ -225,25 +225,23 @@ def test_room_draw_card_new():
 def test_initialize_standard52_deck_creates_new_room():
     original_room = Room()  # No decks initially
 
-    # Call initialize_deck to create the new room with a 52-card deck
-    new_room = original_room.initialize_deck(deck_type="standard52")
+    # Call initialize_deck and unpack results
+    new_room, deck_id = original_room.initialize_deck(deck_type="standard52")
 
     # Original room should be unchanged
     assert len(original_room.decks) == 0
 
-    # New room should contain one new deck
+    # New room should have one deck with the given ID
     assert len(new_room.decks) == 1
+    assert deck_id in new_room.decks
 
-    # Get the deck and check its contents
-    deck_id = next(iter(new_room.decks))
+    # Get and verify the deck
     deck = new_room.decks[deck_id]
-
     assert len(deck.cards) == 52
 
-    # Ensure card fronts are unique and correctly formatted
     card_fronts = [card.card_front for card in deck.cards]
-    assert len(set(card_fronts)) == 52
+    assert len(set(card_fronts)) == 52  # Unique cards
     assert "H2" in card_fronts
-    assert "DJ" in card_fronts
-    assert "SA" in card_fronts
-    assert "C10" in card_fronts
+    assert "DQ" in card_fronts
+    assert "SK" in card_fronts
+    assert "CA" in card_fronts

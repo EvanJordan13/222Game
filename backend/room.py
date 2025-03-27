@@ -40,9 +40,9 @@ class Room:
         room.hands[hand_id] = hand
         return room
     
-    #initializes a deck and returns the deck id
+    #initializes a deck and returns the new room and deck id
 
-    def initialize_deck(self, pos = (0,0), deck_type ="standard52") -> "Room":
+    def initialize_deck(self, pos = (0,0), deck_type ="standard52") -> tuple["Room", str]:
         match deck_type:
             case "standard52":
                 room = copy.copy(self)
@@ -60,10 +60,10 @@ class Room:
                 ])
 
                 room.decks[deck_id] = deck
-                return room
+                return room, deck_id
                 
             case _ :
-                return self
+                return self, ""
 
 
 
