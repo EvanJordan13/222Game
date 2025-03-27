@@ -1,11 +1,10 @@
 // Card dimensions and constants
-const CARD_WIDTH = 120;
-const CARD_HEIGHT = 168;
-const CARD_RADIUS = 8;
-
+export const CARD_WIDTH = 120;
+export const CARD_HEIGHT = 168;
+export const CARD_RADIUS = 8;
 
 // Table surface constants
-const TABLE_GRID_SIZE = 40
+const TABLE_GRID_SIZE = 40;
 
 // Draw the table background
 export const drawTable = (ctx, dimensions, camera) => {
@@ -14,7 +13,6 @@ export const drawTable = (ctx, dimensions, camera) => {
   // Table background
   ctx.fillStyle = "#076324"; // Dark green for the table
   ctx.fillRect(0, 0, width, height);
-
 
   // Table pattern oooo
   ctx.fillStyle = "#0a7c2e"; // lighter green
@@ -51,10 +49,14 @@ export const drawCard = (ctx, card, x, y, faceUp = true, selected = false) => {
   roundedRect(ctx, x, y, CARD_WIDTH, CARD_HEIGHT, CARD_RADIUS);
   ctx.fill();
 
-  // Card border
-
-  ctx.strokeStyle = "#000";
-  ctx.lineWidth = 1;
+  // Card border - highlight if selected
+  if (selected) {
+    ctx.strokeStyle = "#FFD700"; // Gold highlight for selected card
+    ctx.lineWidth = 3;
+  } else {
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 1;
+  }
   ctx.stroke();
 
   // If the card is face up, draw its contents

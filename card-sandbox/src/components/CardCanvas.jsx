@@ -1,7 +1,18 @@
-import React, { useRef, useEffect, useState } from "react";
-import { drawCard, drawTable } from "../utils/canvasUtils";
+import React, { useRef, useEffect, useState, useCallback } from "react";
+import {
+  drawCard,
+  drawTable,
+  CARD_WIDTH,
+  CARD_HEIGHT,
+} from "../utils/canvasUtils";
 
-const CardCanvas = ({ cards }) => {
+const CardCanvas = ({
+  cards,
+  onCardMove,
+  onCardFlip,
+  onCardSelect,
+  onDeselectCard,
+}) => {
   const canvasRef = useRef(null);
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
@@ -11,6 +22,10 @@ const CardCanvas = ({ cards }) => {
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1, vx: 0, vy: 0 });
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  const [selectedCardIndex, setSelectedCardIndex] = useState(null);
+  const [lastClickTime, setLastClickTime] = useState(0);
+  const [cardOffset, setCardOffset] = useState({ x: 0, y: 0 });
+  const [isDraggingCard, setIsDraggingCard] = useState(false);
 
   // Update canvas dimensions when the window resizes
   useEffect(() => {
@@ -24,6 +39,41 @@ const CardCanvas = ({ cards }) => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Convert screen coordinates to world coordinates
+  const screenToWorld = useCallback(
+    (screenX, screenY) => {
+      return {
+        x: (screenX - dimensions.width / 2) / camera.zoom + camera.x,
+        y: (screenY - dimensions.height / 2) / camera.zoom + camera.y,
+      };
+    },
+    [dimensions, camera]
+  );
+
+  // Check if a point is inside a card
+  const isPointInCard = useCallback((x, y, cardX, cardY) => {
+    return (
+      x >= cardX &&
+      x <= cardX + CARD_WIDTH &&
+      y >= cardY &&
+      y <= cardY + CARD_HEIGHT
+    );
+  }, []);
+
+  // Find the top card at a given position
+  const findCardAtPosition = useCallback(
+    (x, y) => {
+      // Iterate in reverse to check topmost cards first
+      for (let i = cards.length - 1; i >= 0; i--) {
+        if (isPointInCard(x, y, cards[i].x, cards[i].y)) {
+          return i;
+        }
+      }
+      return null;
+    },
+    [cards, isPointInCard]
+  );
 
   // Draw the canvas content
   useEffect(() => {
@@ -45,40 +95,139 @@ const CardCanvas = ({ cards }) => {
     // Apply camera transformations
     ctx.save();
     ctx.translate(dimensions.width / 2, dimensions.height / 2);
+    ctx.scale(camera.zoom, camera.zoom);
     ctx.translate(-camera.x, -camera.y);
 
-
     // Draw all cards
-    cards.forEach((card) => {
-      drawCard(ctx, card, card.x, card.y, card.faceUp !== false);
+    cards.forEach((card, index) => {
+      const isSelected = index === selectedCardIndex;
+      drawCard(ctx, card, card.x, card.y, card.faceUp !== false, isSelected);
     });
 
     ctx.restore();
-  }, [cards, dimensions, camera]);
+  }, [cards, dimensions, camera, selectedCardIndex]);
 
   const handleCanvasClick = (e) => {
-    // Get click coordinates relative to the canvas
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / camera.zoom + camera.x;
-    const y = (e.clientY - rect.top) / camera.zoom + camera.y;
-    console.log("Clicked at: ", x, y);
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    const worldPos = screenToWorld(screenX, screenY);
+
+    const cardIndex = findCardAtPosition(worldPos.x, worldPos.y);
+
+    // Check for double-click to flip card
+    const now = Date.now();
+    if (cardIndex !== null && now - lastClickTime < 300) {
+      // Double-click detected
+      if (onCardFlip) {
+        onCardFlip(cardIndex);
+      }
+    }
+
+    setLastClickTime(now);
+  };
+
+  const handleMouseDown = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    const worldPos = screenToWorld(screenX, screenY);
+
+    // Check if we clicked on a card
+    const cardIndex = findCardAtPosition(worldPos.x, worldPos.y);
+
+    if (cardIndex !== null) {
+      // Clicked on a card
+      setSelectedCardIndex(cardIndex);
+      setIsDraggingCard(true);
+
+      // Notify parent component about selection
+      if (onCardSelect) {
+        onCardSelect(cardIndex);
+      }
+
+      // Store the offset from the card's origin
+      setCardOffset({
+        x: worldPos.x - cards[cardIndex].x,
+        y: worldPos.y - cards[cardIndex].y,
+      });
+    } else {
+      // Clicked on the background - pan the camera
+      setDragging(true);
+      dragStart.current = { x: e.clientX, y: e.clientY };
+      setCamera((prev) => ({ ...prev, vx: 0, vy: 0 })); // Reset inertia
+
+      // Deselect any selected card
+      if (selectedCardIndex !== null) {
+        setSelectedCardIndex(null);
+        if (onDeselectCard) {
+          onDeselectCard();
+        }
+      }
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!dragging && !isDraggingCard) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+
+    if (isDraggingCard && selectedCardIndex !== null) {
+      // Move the selected card
+      const worldPos = screenToWorld(screenX, screenY);
+
+      if (onCardMove) {
+        onCardMove(
+          selectedCardIndex,
+          worldPos.x - cardOffset.x,
+          worldPos.y - cardOffset.y
+        );
+      }
+    } else if (dragging) {
+      // Pan the camera
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      setCamera((prev) => ({
+        ...prev,
+        x: prev.x - dx / camera.zoom,
+        y: prev.y - dy / camera.zoom,
+        vx: dx / camera.zoom,
+        vy: dy / camera.zoom,
+      }));
+      dragStart.current = { x: e.clientX, y: e.clientY };
+    }
+  };
+
+  const handleMouseUp = () => {
+    setDragging(false);
+    setIsDraggingCard(false);
   };
 
   const handleWheel = (e) => {
-    //const zoomIntensity = 0.1;
-    //const rect = canvasRef.current.getBoundingClientRect();
-    //const mouseX = (e.clientX - rect.left) / camera.zoom + camera.x;
-    //const mouseY = (e.clientY - rect.top) / camera.zoom + camera.y;
-    //
-    //const newZoom = camera.zoom * (e.deltaY > 0 ? 1 - zoomIntensity : 1 + zoomIntensity);
-    //const clampedZoom = Math.max(0.5, Math.min(2, newZoom));
-    //
-    //setCamera((prev) => ({
-    //  ...prev,
-    //  zoom: clampedZoom,
-    //  x: mouseX - (mouseX - prev.x) * (clampedZoom / prev.zoom),
-    //  y: mouseY - (mouseY - prev.y) * (clampedZoom / prev.zoom)
-    //}));
+    const zoomIntensity = 0.1;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Convert mouse position to world space before zoom
+    const worldPos = screenToWorld(mouseX, mouseY);
+
+    // Calculate new zoom level
+    const newZoom =
+      camera.zoom * (e.deltaY > 0 ? 1 - zoomIntensity : 1 + zoomIntensity);
+    const clampedZoom = Math.max(0.5, Math.min(2, newZoom));
+
+    // Update camera position to zoom toward mouse
+    setCamera((prev) => ({
+      ...prev,
+      zoom: clampedZoom,
+      x: worldPos.x - (mouseX - dimensions.width / 2) / clampedZoom,
+      y: worldPos.y - (mouseY - dimensions.height / 2) / clampedZoom,
+    }));
+
+    e.preventDefault();
   };
 
   const handleKeyDown = (e) => {
@@ -101,23 +250,7 @@ const CardCanvas = ({ cards }) => {
     }
   };
 
-  const handleMouseDown = (e) => {
-    setDragging(true);
-    dragStart.current = { x: e.clientX, y: e.clientY };
-    setCamera((prev) => ({ ...prev, vx: 0, vy: 0 })); // Reset inertia
-  };
-
-  const handleMouseMove = (e) => {
-    if (!dragging) return;
-    const dx = e.clientX - dragStart.current.x;
-    const dy = e.clientY - dragStart.current.y;
-    setCamera((prev) => ({ ...prev, x: prev.x - dx, y: prev.y - dy, vx: dx, vy: dy}));
-    dragStart.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleMouseUp = () => setDragging(false);
-
-  // Inertia effect
+  // Inertia effect for camera panning
   useEffect(() => {
     if (!dragging && (camera.vx !== 0 || camera.vy !== 0)) {
       const friction = 0.95;
@@ -127,7 +260,7 @@ const CardCanvas = ({ cards }) => {
           x: prev.x - prev.vx,
           y: prev.y - prev.vy,
           vx: prev.vx * friction,
-          vy: prev.vy * friction
+          vy: prev.vy * friction,
         }));
       });
 
@@ -150,12 +283,24 @@ const CardCanvas = ({ cards }) => {
       window.removeEventListener("mouseup", handleMouseUp);
       window.removeEventListener("mousemove", handleMouseMove);
     };
-  }, [camera, dragging]);
+  }, [
+    camera,
+    dragging,
+    isDraggingCard,
+    selectedCardIndex,
+    cards,
+    screenToWorld,
+  ]);
 
   return (
     <canvas
       ref={canvasRef}
-      className="w-full h-full block"
+      width={dimensions.width}
+      height={dimensions.height}
+      style={{
+        display: "block",
+        backgroundColor: "#1a202c",
+      }}
       onClick={handleCanvasClick}
       onMouseDown={handleMouseDown}
     />
@@ -163,4 +308,3 @@ const CardCanvas = ({ cards }) => {
 };
 
 export default CardCanvas;
-
