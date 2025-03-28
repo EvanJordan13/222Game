@@ -1,9 +1,11 @@
 from room import Room
+from typing import List
+from dataclasses import dataclass, field
 
+@dataclass
 class BigRoom:
-    def __init__(self):
-        self.players = []
-        self.room = Room()
+    players: List[str] = field(default_factory=list)
+    room: Room = field(default_factory=lambda: Room([], {}, {}))
     
     def addPlayer(self, playerName):
         self.players.append(playerName)
@@ -15,6 +17,9 @@ class BigRoom:
         return len(self.players)
     
     def updateState(self, action):
-        if action["name"] == "shuffle":
+        if action["action"] == "shuffle":
             self.room.shuffle(action["args"][0])
+        elif action["action"] == "nothing":
+            pass
         #TODO integrate other functions
+    
