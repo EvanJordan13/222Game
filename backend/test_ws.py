@@ -2,8 +2,8 @@ import asyncio
 import websockets
 import json
 import pytest
-from main import app
-from fastapi.testclient import TestClient
+from bigroom import BigRoom
+from dataclasses_serialization.json import JSONSerializer
 
 ### Make sure FastAPI server is already running or this won't work!
 
@@ -11,27 +11,57 @@ from fastapi.testclient import TestClient
 async def test_single_connection():
     async with websockets.connect("ws://127.0.0.1:8000/ws/mcI5j0Kw") as websocket:
         await websocket.send("Ma")
-        request = {"speed": 100}
+        state = await websocket.recv()
+        room = JSONSerializer.deserialize(BigRoom, json.loads(state))
+        assert room.numPlayers() == 1
+
+@pytest.mark.asyncio
+async def test_single_connection_with_request():
+    async with websockets.connect("ws://127.0.0.1:8000/ws/mcI5j0Kw") as websocket:
+        await websocket.send("Ma")
+        state = await websocket.recv()
+        room = JSONSerializer.deserialize(BigRoom, json.loads(state))
+        assert room.numPlayers()==1
+        request = {"action": "nothing", "args":[0]}
         await websocket.send(json.dumps(request))
-        response = await websocket.recv()
-        data = json.loads(response)
-        assert "speed" in data
-        assert data["speed"] == 100
+        state = await websocket.recv()
+        room = JSONSerializer.deserialize(BigRoom, json.loads(state))
+        assert room.numPlayers()==1
 
 @pytest.mark.asyncio
 async def test_multiple_connections():
     
-    async def connect_and_send(name, request):
+    async def connect(name):
         async with websockets.connect("ws://127.0.0.1:8000/ws/mcI5j0Kw") as websocket:
             await websocket.send(name)
-            await websocket.send(json.dumps(request))
-            response = await websocket.recv()
-            data = json.loads(response)
-            return data
+            state = await websocket.recv()
+            room = JSONSerializer.deserialize(BigRoom, json.loads(state))
+            return room.numPlayers()
     
-    response1 = await asyncio.create_task(connect_and_send("Joe", {"age": 32}))
-    response2 = await asyncio.create_task(connect_and_send("Jill", {"age": 53}))
+    results = await asyncio.gather(connect("Evan"), connect("Ben"), connect("Roshan"), connect("Nathan"))
 
-    assert "age" in response1 and "age" in response2
-    assert response1["age"] == 32
-    assert response2["age"] == 53
+    assert len(results) == 4
+    assert set(results) == {1, 2, 3, 4}
+
+
+@pytest.mark.asyncio
+async def test_multiple_connections_with_requests():
+    
+    async def connect(name):
+        async with websockets.connect("ws://127.0.0.1:8000/ws/mcI5j0Kw") as websocket:
+            await websocket.send(name)
+            state = await websocket.recv()
+            room = JSONSerializer.deserialize(BigRoom, json.loads(state))
+            x = room.numPlayers()
+            assert 1<=room.numPlayers() and room.numPlayers()<=4
+            request = {"action": "nothing", "args":[0]}
+            await websocket.send(json.dumps(request))
+            state = await websocket.recv()
+            room = JSONSerializer.deserialize(BigRoom, json.loads(state))
+            assert x<=room.numPlayers() and room.numPlayers()<=4
+            
+    
+    await asyncio.gather(connect("Evan"), connect("Ben"), connect("Roshan"), connect("Nathan"))
+    # assert set(results) == {1, 2, 3, 4} might no
+    
+
