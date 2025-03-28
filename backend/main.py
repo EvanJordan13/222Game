@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from functions import get_room_id
 from bigroom import BigRoom
 from models import JoinRoomRequest
+from dataclasses_serialization.json import JSONSerializer
+import json
 
 app = FastAPI()
 origins = [
@@ -44,9 +46,11 @@ async def websocket_endpoint(ws: WebSocket, room_id: str):
     await ws.accept()
     playerName = await ws.receive_text()
     rooms[room_id].addPlayer(playerName)
+    await ws.send_json(JSONSerializer.serialize(rooms[room_id]))
     try:
         while True:
             data = await ws.receive_json()
-            await ws.send_json(data)
+            rooms[room_id].updateState(data)
+            await ws.send_json(JSONSerializer.serialize(rooms[room_id]))
     except WebSocketDisconnect:
         rooms[room_id].removePlayer(playerName)
