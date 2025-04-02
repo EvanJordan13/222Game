@@ -42,7 +42,7 @@ class Room:
     
     #initializes a deck and returns the new room and deck id
 
-    def initialize_deck(self, pos = (0,0), deck_type ="standard52") -> tuple["Room", str]:
+    def initialize_deck(self, pos = [0,0], deck_type ="standard52") -> tuple["Room", str]:
         match deck_type:
             case "standard52":
                 room = copy.copy(self)

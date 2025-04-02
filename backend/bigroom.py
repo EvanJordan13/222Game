@@ -18,8 +18,20 @@ class BigRoom:
     
     def updateState(self, action):
         if action["action"] == "shuffle":
-            self.room.shuffle(action["args"][0])
+            self.room.shuffle(action["args"]["deck_id"])
         elif action["action"] == "nothing":
             pass
+        elif action["action"] == "initialize_deck":
+            x = 0
+            y = 0
+            if "pos" in action["args"]:
+                x = action["args"]["pos"][0]
+                y = action["args"]["pos"][1]
+            deck_type = "standard52"
+            if "deck_type" in action["args"]:
+                deck_type = action["args"]["deck_type"]
+            print(x, y, deck_type)
+            self.room, deck_id = self.room.initialize_deck([x,y], deck_type)
+
         #TODO integrate other functions
     
