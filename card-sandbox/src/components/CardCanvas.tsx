@@ -136,7 +136,11 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
     ctx.clearRect(0, 0, dimensions.width, dimensions.height);
 
     // Draw table background
-    drawTable(ctx, dimensions);
+    try {
+      drawTable(ctx, dimensions);
+    } catch (error) {
+      console.error("Error drawing table:", error);
+    }
 
     // Apply camera transformations
     ctx.save();
