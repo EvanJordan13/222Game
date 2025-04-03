@@ -1,5 +1,5 @@
-const CARD_WIDTH = 120;
-const CARD_HEIGHT = 168;
+export const CARD_WIDTH = 120;
+export const CARD_HEIGHT = 168;
 const CARD_RADIUS = 8;
 
 const TABLE_GRID_SIZE = 40;
