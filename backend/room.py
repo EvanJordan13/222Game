@@ -39,6 +39,32 @@ class Room:
 
         room.hands[hand_id] = hand
         return room
+    
+    #initializes a deck and returns the new room and deck id
+
+    def initialize_deck(self, pos = [0,0], deck_type ="standard52") -> tuple["Room", str]:
+        match deck_type:
+            case "standard52":
+                room = copy.copy(self)
+                room.decks = copy.copy(room.decks)
+
+                deck_id = "standard_52_" + str(len(room.decks))
+
+                def rank_to_str(rank):
+                    return {11: "J", 12: "Q", 13: "K", 14: "A"}.get(rank, str(rank))
+                
+                deck = Deck(id= deck_id, position= pos, cards=[
+                    Card(card_front=suit + rank_to_str(rank))
+                    for rank in range(2, 15)
+                    for suit in ["H", "D", "S", "C"]
+                ])
+
+                room.decks[deck_id] = deck
+                return room, deck_id
+                
+            case _ :
+                return self, ""
+
 
 
     ##########################

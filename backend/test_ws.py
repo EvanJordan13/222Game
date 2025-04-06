@@ -22,11 +22,44 @@ async def test_single_connection_with_request():
         state = await websocket.recv()
         room = JSONSerializer.deserialize(BigRoom, json.loads(state))
         assert room.numPlayers()==1
-        request = {"action": "nothing", "args":[0]}
+        request = {"action": "initialize_deck", "args":{"pos":[2, 2]}}
         await websocket.send(json.dumps(request))
         state = await websocket.recv()
-        room = JSONSerializer.deserialize(BigRoom, json.loads(state))
+        json_room = json.loads(state)
+        assert "standard_52_0" in json_room["room"]["decks"]
+        my_deck = json_room["room"]["decks"]["standard_52_0"]
+        assert my_deck["id"] == "standard_52_0"
+        assert my_deck["position"] == [2,2]
+        assert len(my_deck["cards"]) == 52
+        card_fronts = [card["card_front"] for card in my_deck["cards"]]
+        assert "H2" in card_fronts
+        assert "DQ" in card_fronts
+        assert "SK" in card_fronts
+        assert "CA" in card_fronts
+        room = JSONSerializer.deserialize(BigRoom, json_room)
         assert room.numPlayers()==1
+
+@pytest.mark.asyncio
+async def test_single_connection_with_complex_request():
+    async with websockets.connect("ws://127.0.0.1:8000/ws/mcI5j0Kx") as websocket:
+        await websocket.send("Ma")
+        await websocket.recv()
+        request = {"action": "initialize_deck", "args":{}}
+        await websocket.send(json.dumps(request))
+        await websocket.recv()
+        request = {"action":"remove_top", "args":{"deck_id":"standard_52_0", "n":51}}
+        await websocket.send(json.dumps(request))
+        await websocket.recv()
+        request = {"action":"add_top", "args":{"deck_id": "standard_52_0", "card":{"card_front":"lala", "card_back":"zaza", "face_up":False}}}
+        await websocket.send(json.dumps(request))
+        state = await websocket.recv()
+        json_room = json.loads(state)
+        assert "standard_52_0" in json_room["room"]["decks"]
+        my_deck = json_room["room"]["decks"]["standard_52_0"]
+        assert my_deck["id"] == "standard_52_0"
+        assert my_deck["position"] == [0,0]
+        assert len(my_deck["cards"]) == 2
+        assert my_deck["cards"][1]["card_front"] == "lala"
 
 @pytest.mark.asyncio
 async def test_multiple_connections():
@@ -54,14 +87,24 @@ async def test_multiple_connections_with_requests():
             room = JSONSerializer.deserialize(BigRoom, json.loads(state))
             x = room.numPlayers()
             assert 1<=room.numPlayers() and room.numPlayers()<=4
-            request = {"action": "nothing", "args":[0]}
+            request = {"action": "initialize_deck", "args":{"pos":[2, 2]}}
             await websocket.send(json.dumps(request))
             state = await websocket.recv()
+            json_room = json.loads(state)
+            assert f"standard_52_{x-1}" in json_room["room"]["decks"]
+            my_deck = json_room["room"]["decks"][f"standard_52_{x-1}"]
+            assert my_deck["id"] == f"standard_52_{x-1}"
+            assert my_deck["position"] == [2,2]
+            assert len(my_deck["cards"]) == 52
+            card_fronts = [card["card_front"] for card in my_deck["cards"]]
+            assert "H2" in card_fronts
+            assert "DQ" in card_fronts
+            assert "SK" in card_fronts
+            assert "CA" in card_fronts
             room = JSONSerializer.deserialize(BigRoom, json.loads(state))
             assert x<=room.numPlayers() and room.numPlayers()<=4
             
     
     await asyncio.gather(connect("Evan"), connect("Ben"), connect("Roshan"), connect("Nathan"))
-    # assert set(results) == {1, 2, 3, 4} might no
     
 

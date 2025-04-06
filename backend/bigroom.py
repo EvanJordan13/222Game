@@ -1,6 +1,8 @@
 from room import Room
+from objects import Card
 from typing import List
 from dataclasses import dataclass, field
+from dataclasses_serialization.json import JSONSerializer
 
 @dataclass
 class BigRoom:
@@ -16,10 +18,30 @@ class BigRoom:
     def numPlayers(self):
         return len(self.players)
     
-    def updateState(self, action):
-        if action["action"] == "shuffle":
-            self.room.shuffle(action["args"][0])
-        elif action["action"] == "nothing":
+    def updateState(self, a):
+        if a["action"] == "shuffle":
+            self.room = self.room.shuffle(a["args"]["deck_id"])
+        elif a["action"] == "nothing":
+            pass
+        elif a["action"] == "initialize_deck":
+            x = 0
+            y = 0
+            if "pos" in a["args"]:
+                x = a["args"]["pos"][0]
+                y = a["args"]["pos"][1]
+            deck_type = "standard52"
+            if "deck_type" in a["args"]:
+                deck_type = a["args"]["deck_type"]
+            self.room, deck_id = self.room.initialize_deck([x,y], deck_type)
+        elif a["action"] == "remove_top":
+            self.room = self.room.remove_top(a["args"]["deck_id"], a["args"]["n"])
+        elif a["action"] == "add_top":
+            card = JSONSerializer.deserialize(Card, a["args"]["card"])
+            self.room = self.room.add_top(a["args"]["deck_id"], card)
+        elif a["action"] == "flip_deck_card":
+            self.room = self.room.flip_deck_card(a["args"]["deck_id"], a["args"]["idx"], a["args"]["face_up"])
+        elif a["action"] == "deck_peek":
+            # discuss at meeting
             pass
         #TODO integrate other functions
     

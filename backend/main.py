@@ -23,6 +23,8 @@ room_ids = {}
 rooms = {}
 room_ids["mcI5j0Kw"] = 1
 rooms["mcI5j0Kw"] = BigRoom()
+room_ids["mcI5j0Kx"] = 1
+rooms["mcI5j0Kx"] = BigRoom()
 
 @app.get("/")
 def root():
