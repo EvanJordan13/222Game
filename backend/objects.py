@@ -9,7 +9,7 @@ class Deck:
     ### Deck Data
     ###
     id: str = ""
-    position: Tuple[int,int] = (0,0)
+    position: List[int] = field(default_factory=list)
     cards: List["Card"] = field(default_factory=list)
 
     ###
@@ -42,7 +42,7 @@ class Deck:
     def move_deck(self, tuple_or_x, y=None) -> "Deck":
         deck = copy.copy(self)
         if isinstance(tuple_or_x, int):
-            deck.position = (tuple_or_x,y)
+            deck.position = [tuple_or_x,y]
         else:
             deck.position = tuple_or_x
         return deck
