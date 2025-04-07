@@ -9,14 +9,46 @@ jest.mock("../utils/canvasUtils", () => ({
   drawTable: jest.fn(),
 }));
 
-// Mock canvas getContext
-const mockGetContext = jest.fn();
+// Mock Camera before importing anything
+jest.mock("../utils/camera", () => {
+  const mockCameraInstance = {
+    worldToScreen: jest.fn(),
+    hasInertia: jest.fn(() => false),
+    updateInertia: jest.fn(function () {
+      return this;
+    }),
+    updatePosition: jest.fn(),
+    translate: jest.fn(),
+    resetInertia: jest.fn(),
+    zoomBy: jest.fn(),
+    updateZoom: jest.fn(),
+    screenToWorld: jest.fn(),
+  };
+
+  return {
+    __esModule: true, // Ensures the module is treated as ES module
+    default: class Camera {
+      static new() {
+        return mockCameraInstance; // Return the mock instance when new() is called
+      }
+    },
+  };
+});
+
 const mockClearRect = jest.fn();
+const mockSave = jest.fn();
+const mockRestore = jest.fn();
+const mockSetTransform = jest.fn();
 
 // Mock canvas setup
 HTMLCanvasElement.prototype.getContext = function () {
   return {
     clearRect: mockClearRect,
+    save: mockSave,
+    restore: mockRestore,
+    setTransform: mockSetTransform,
+    translate: jest.fn(),
+    scale: jest.fn(),
   };
 };
 
@@ -38,7 +70,10 @@ describe("CardCanvas Component", () => {
     render(<CardCanvas cards={[]} />);
 
     // Check if drawTable was called with the correct dimensions
-    expect(drawTable).toHaveBeenCalledWith(expect.anything(), 800, 600);
+    expect(drawTable).toHaveBeenCalledWith(expect.anything(), {
+      width: 800,
+      height: 600,
+    });
 
     // Restore original dimensions
     global.innerWidth = originalWidth;
@@ -62,7 +97,8 @@ describe("CardCanvas Component", () => {
       testCards[0],
       testCards[0].x,
       testCards[0].y,
-      true
+      true,
+      false
     );
 
     // Check if drawCard was called with correct parameters for second card
@@ -71,6 +107,7 @@ describe("CardCanvas Component", () => {
       testCards[1],
       testCards[1].x,
       testCards[1].y,
+      false,
       false
     );
   });
@@ -89,6 +126,9 @@ describe("CardCanvas Component", () => {
     fireEvent(window, new Event("resize"));
 
     // Check if drawTable was called with new dimensions
-    expect(drawTable).toHaveBeenCalledWith(expect.anything(), 1024, 768);
+    expect(drawTable).toHaveBeenCalledWith(expect.anything(), {
+      width: 1024,
+      height: 768,
+    });
   });
 });
