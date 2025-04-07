@@ -47,6 +47,8 @@ HTMLCanvasElement.prototype.getContext = function () {
     save: mockSave,
     restore: mockRestore,
     setTransform: mockSetTransform,
+    translate: jest.fn(),
+    scale: jest.fn(),
   };
 };
 
@@ -95,7 +97,8 @@ describe("CardCanvas Component", () => {
       testCards[0],
       testCards[0].x,
       testCards[0].y,
-      true
+      true,
+      false
     );
 
     // Check if drawCard was called with correct parameters for second card
@@ -104,6 +107,7 @@ describe("CardCanvas Component", () => {
       testCards[1],
       testCards[1].x,
       testCards[1].y,
+      false,
       false
     );
   });
