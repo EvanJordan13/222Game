@@ -1,4 +1,7 @@
 import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import CardCanvas from "./CardCanvas";
+import { drawCard, drawTable } from "../utils/canvasUtils";
 
 // Mock the canvas utils functions
 jest.mock("../utils/canvasUtils", () => ({
@@ -32,14 +35,6 @@ jest.mock("../utils/camera", () => {
   };
 });
 
-
-
-
-
-import { render, screen, fireEvent } from "@testing-library/react";
-import CardCanvas from "./CardCanvas";
-import { drawCard, drawTable } from "../utils/canvasUtils";
-
 const mockClearRect = jest.fn();
 const mockSave = jest.fn();
 const mockRestore = jest.fn();
@@ -51,11 +46,9 @@ HTMLCanvasElement.prototype.getContext = function () {
     clearRect: mockClearRect,
     save: mockSave,
     restore: mockRestore,
-    setTransform: mockSetTransform
+    setTransform: mockSetTransform,
   };
 };
-
-
 
 describe("CardCanvas Component", () => {
   beforeEach(() => {
@@ -75,7 +68,10 @@ describe("CardCanvas Component", () => {
     render(<CardCanvas cards={[]} />);
 
     // Check if drawTable was called with the correct dimensions
-    expect(drawTable).toHaveBeenCalledWith(expect.anything(), { width: 800, height: 600 });
+    expect(drawTable).toHaveBeenCalledWith(expect.anything(), {
+      width: 800,
+      height: 600,
+    });
 
     // Restore original dimensions
     global.innerWidth = originalWidth;
@@ -126,6 +122,9 @@ describe("CardCanvas Component", () => {
     fireEvent(window, new Event("resize"));
 
     // Check if drawTable was called with new dimensions
-    expect(drawTable).toHaveBeenCalledWith(expect.anything(), { width: 1024, height: 768 });
+    expect(drawTable).toHaveBeenCalledWith(expect.anything(), {
+      width: 1024,
+      height: 768,
+    });
   });
 });
