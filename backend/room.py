@@ -40,9 +40,11 @@ class Room:
         room.hands[hand_id] = hand
         return room
     
-    #initializes a deck and returns the new room and deck id
-
-    def initialize_deck(self, pos = [0,0], deck_type ="standard52") -> tuple["Room", str]:
+    #initializes a deck and returns a tuple of the new room and deck id
+    #arg1 position of new deck. optional
+    #arg2 type of new deck. default standard 52 card deck
+    #returns a list where the first entry is the new room and the second entry is the new deck name
+    def initialize_deck(self, pos = [0,0], deck_type ="standard52") -> ["Room", str]:
         match deck_type:
             case "standard52":
                 room = copy.copy(self)
@@ -59,13 +61,29 @@ class Room:
                     for suit in ["H", "D", "S", "C"]
                 ])
 
-                room.decks[deck_id] = deck
-                return room, deck_id
-                
+                room.decks[deck.id] = deck
+                return [room, deck_id]                
             case _ :
-                return self, ""
+                return [self, ""]
 
+    #splits the deck into 2 decks by making a new deck out of the top n cards.
+    #arg1 name of deck to split
+    #arg2 number of cards off the top to remove and put into a new deck 
+    #arg3 position of the new deck
+    #returns a list where the first entry is the new room and the second entry is the new deck name
+    def split_deck(self, deck_id, n, pos) -> ["Room",str]:
+        room = copy.copy(self)
+        room.decks = copy.copy(room.decks)
+        room.decks[deck_id] = copy.copy(room.decks[deck_id])
+        room.decks[deck_id + "_copy"] = Deck(position= pos)
 
+        for i in range(n):
+            room.decks[deck_id + "_copy"].cards.append(room.decks[deck_id].deck_peek(n-i-1))
+        room.decks[deck_id] = room.decks[deck_id].remove_top(n)
+        print("\n\n")
+        print(room.decks[deck_id + "_copy"])
+        print("\n\n")
+        return [room, deck_id + "_copy"]
 
     ##########################
     ### Deck Manipulations ###
@@ -106,11 +124,21 @@ class Room:
         room.decks[deck_id].cards[idx] = room.decks[deck_id].cards[idx].flip(face_up)
         return room
     
+    #flips the deck. reverses the order and flips face up to face down and viceversa
+    #arg1 name of deck
+    def flip_deck(self, deck_id) -> "Room":
+        room = copy.copy(self)
+        room.decks = copy.copy(room.decks)
+        room.decks[deck_id] = copy.copy(room.decks[deck_id])
+        room.decks[deck_id] = room.decks[deck_id].flip_deck()
+        return room
+    
     #changes location of the deck
     #arg1 tuple of new (x,y) location
     def move_deck(self, deck_id, tuple) -> "Room":
         room = copy.copy(self)
         room.decks[deck_id] = room.decks[deck_id].move_deck()
+        return room
 
     ##########################
     ### Hand Manipulations ###

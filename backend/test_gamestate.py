@@ -245,3 +245,72 @@ def test_initialize_standard52_deck_creates_new_room():
     assert "DQ" in card_fronts
     assert "SK" in card_fronts
     assert "CA" in card_fronts
+
+
+def test_room_flip_deck():
+    """
+    Tests that flipping a deck:
+      1) Reverses the card order and toggles face_up status in the new room.
+      2) Does not mutate the original room.
+    """
+    # Original room setup
+    original_deck = Deck(cards=[
+        Card(card_front="A", face_up=True),
+        Card(card_front="K", face_up=False),
+        Card(card_front="Q", face_up=True),
+    ])
+    room = Room(decks={"main": original_deck})
+
+    # Flip the deck in a new room
+    new_room = room.flip_deck("main")
+
+    # -- Check original room is unchanged --
+    # Deck order
+    assert [card.card_front for card in room.decks["main"].cards] == ["A", "K", "Q"]
+    # Face-up states
+    assert [card.face_up for card in room.decks["main"].cards] == [True, False, True]
+
+    # -- Check new room is changed --
+    flipped_cards = new_room.decks["main"].cards
+    # Order should be reversed
+    assert [card.card_front for card in flipped_cards] == ["Q", "K", "A"]
+    # Face-up statuses should be toggled
+    assert [card.face_up for card in flipped_cards] == [False, True, False]
+
+def test_room_split_deck():
+    """
+    Tests that splitting a deck:
+      1) Creates a new deck with the top N cards in the new room.
+      2) Removes those N cards from the original deck in the new room.
+      3) Does not mutate the original room.
+    """
+    # Original room setup
+    original_deck = Deck(cards=[
+        Card(card_front="A"),
+        Card(card_front="K"),
+        Card(card_front="Q"),
+        Card(card_front="J"),
+        Card(card_front="10"),
+        Card(card_front="9"),
+    ])
+    room = Room(decks={"main": original_deck})
+
+    # Split off the top 2 cards into a new deck
+    new_room, new_deck_id = room.split_deck("main", n=2, pos="split1")
+
+    # -- Check original room is unchanged --
+    assert len(room.decks) == 1  # only "main" deck
+    assert [c.card_front for c in room.decks["main"].cards] == ["A", "K", "Q", "J", "10", "9"]
+
+    # -- Check new room has two decks --
+    assert len(new_room.decks) == 2
+    assert "main" in new_room.decks
+    assert new_deck_id in new_room.decks  # should be "main_copy"
+
+    # The new deck should have the top 2 cards (last two in original order)
+    split_deck = new_room.decks[new_deck_id].cards
+    assert [c.card_front for c in split_deck] == ["10", "9"]
+
+    # The main deck in the new room should have the remaining 4 cards (top 2 removed)
+    main_deck_in_new_room = new_room.decks["main"].cards
+    assert [c.card_front for c in main_deck_in_new_room] == ["A", "K", "Q", "J"]

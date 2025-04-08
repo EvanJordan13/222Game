@@ -46,6 +46,15 @@ class Deck:
         else:
             deck.position = tuple_or_x
         return deck
+    
+    def flip_deck(self) -> "Deck":
+        deck = copy.deepcopy(self)
+        deck.cards.reverse()
+        retdeck = []
+        for card in deck.cards:
+            retdeck.append(card.flip())
+        deck.cards = retdeck
+        return deck
 
     ###
     ### Deck Inquires
@@ -66,6 +75,7 @@ class Hand:
     ### Hand Data
     ###
     cards: List["Card"] = field(default_factory=list)
+    hand_id: str = ""
 
     ###
     ### Hand Manipulations
