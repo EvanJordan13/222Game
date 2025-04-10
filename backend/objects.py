@@ -41,7 +41,7 @@ class Deck:
     
     def move_deck(self, x, y) -> "Deck":
         deck = copy.copy(self)
-        deck.position = (x,y)
+        deck.position = [x,y]
         return deck
     
     def flip_deck(self) -> "Deck":

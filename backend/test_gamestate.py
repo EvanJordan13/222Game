@@ -319,14 +319,14 @@ def test_room_split_deck():
 def test_room_move_deck():
     # Setup: Create a deck with a known position, then place it in the room
     original_deck = Deck(cards=[Card(card_front="Ace")])
-    original_deck.position = (0, 0)
+    original_deck.position = [0, 0]
     room = Room(decks={"main": original_deck})
 
     # Act: Move the deck to a new position (10, 20) in a new Room instance
     new_room = room.move_deck("main", 10, 20)
 
     # Assert: Original room is unchanged
-    assert room.decks["main"].position == (0, 0), "Original deck position should remain (0,0)"
+    assert room.decks["main"].position == [0, 0], "Original deck position should remain (0,0)"
 
     # Assert: New room's deck is in the new position
-    assert new_room.decks["main"].position == (10, 20), "Deck should be moved to (10,20)"
+    assert new_room.decks["main"].position == [10, 20], "Deck should be moved to (10,20)"
