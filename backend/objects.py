@@ -9,7 +9,7 @@ class Deck:
     ### Deck Data
     ###
     id: str = ""
-    position: Tuple[int,int] = (0,0)
+    position: List[int] = field(default_factory=list)
     cards: List["Card"] = field(default_factory=list)
 
     ###
