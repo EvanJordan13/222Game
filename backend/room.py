@@ -133,11 +133,15 @@ class Room:
         room.decks[deck_id] = room.decks[deck_id].flip_deck()
         return room
     
-    #changes location of the deck
-    #arg1 tuple of new (x,y) location
-    def move_deck(self, deck_id, tuple) -> "Room":
+    #changes position of the deck
+    #arg1 name of deck
+    #arg2 x coord of new position
+    #arg3 y coord of new position
+    def move_deck(self, deck_id, x,y) -> "Room":
         room = copy.copy(self)
-        room.decks[deck_id] = room.decks[deck_id].move_deck()
+        room.decks = copy.copy(room.decks)
+        room.decks[deck_id] = copy.copy(room.decks[deck_id])
+        room.decks[deck_id] = room.decks[deck_id].move_deck(x, y)
         return room
 
     ##########################
