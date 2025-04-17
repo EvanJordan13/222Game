@@ -177,16 +177,79 @@ const App = () => {
 
   // Handler for adding a new card
   const handleAddCard = (newCardOptions) => {
-    console.log(
-      "handleAddCard called, needs backend integration. Options:",
-      newCardOptions
-    );
+    //convert
+    let backendCardFront = "";
+    const suit = newCardOptions.suit || "hearts";
+    const rank = newCardOptions.rank || "ace";
+
+    let suitChar = "";
+    switch (suit) {
+      case "hearts":
+        suitChar = "H";
+        break;
+      case "diamonds":
+        suitChar = "D";
+        break;
+      case "spades":
+        suitChar = "S";
+        break;
+      case "clubs":
+        suitChar = "C";
+        break;
+      default:
+        suitChar = "?";
+    }
+
+    let rankStr = "";
+    switch (rank) {
+      case "ace":
+        rankStr = "A";
+        break;
+      case "king":
+        rankStr = "K";
+        break;
+      case "queen":
+        rankStr = "Q";
+        break;
+      case "jack":
+        rankStr = "J";
+        break;
+      default:
+        rankStr = rank.toUpperCase();
+        break;
+    }
+    backendCardFront = suitChar + rankStr;
+
+    // TODO: Determine the target deck ID dynamically. Using a placeholder here.
+    const targetDeckId = "standard_52_0";
+
+    if (!targetDeckId) {
+      console.error("Cannot add card: Target deck ID is not specified.");
+      return;
+    }
+
+    const action = {
+      action: "add_card_to_deck",
+      args: {
+        deck_id: targetDeckId,
+        card: {
+          card_front: backendCardFront,
+          card_back: "",
+          face_up: newCardOptions.faceUp !== false,
+        },
+      },
+    };
+    sendAction(action);
   };
 
   // Handler for moving a card
   const handleCardMove = (cardIndex, newX, newY) => {
     const cardId = cardsToRender[cardIndex]?.id;
     if (!cardId) return;
+    console.warn(
+      `Card move initiated for ${cardId} to ${newX}, ${newY}. Backend action needed on drop.`
+    );
+    // TODO: Implement backend action sending on card drop, or visual-only drag.
   };
 
   // Handler for flipping a card
@@ -259,50 +322,21 @@ const App = () => {
 
   // Handler for saving the current setup as a preset
   const handleSavePreset = (preset) => {
-    console.log("Saving preset:", preset.name); // Keep original console log
+    console.log("Saving preset:", preset.name);
     //TODO Implement this foreal
   };
 
   // Handler for loading a preset
   const handleLoadPreset = (preset) => {
-    console.log("Loading preset:", preset.name); // Keep original console log
-    setSelectedCardId(null); // Keep original logic
+    console.log("Loading preset:", preset.name);
+    setSelectedCardId(null);
 
     // Some presets, needs tp be explanded and add custom ones too
-    // This local preset logic should likely be removed if backend handles state fully,
-    // or adapted to send a 'load_preset' action to the backend.
-    // Keeping the original logic here for now as requested.
     if (preset.name === "Poker") {
-      const pokerCards = [
-        /* ... poker cards ... */
-      ];
-      // setCards(pokerCards); // Cannot set local cards anymore
       console.warn("Poker preset load needs backend integration");
     } else if (preset.name === "Blackjack") {
-      const blackjackCards = [
-        /* ... blackjack cards ... */
-      ];
-      // setCards(blackjackCards); // Cannot set local cards anymore
       console.warn("Blackjack preset load needs backend integration");
     } else if (preset.name === "Solitaire") {
-      const solitaireCards = [];
-      const suits = ["hearts", "diamonds", "clubs", "spades"];
-      const ranks = ["ace", "2", "3", "4", "5", "6", "7"];
-      for (let col = 0; col < 7; col++) {
-        for (let row = 0; row <= col; row++) {
-          const suit = suits[Math.floor(Math.random() * suits.length)];
-          const rank = ranks[Math.floor(Math.random() * ranks.length)];
-          solitaireCards.push({
-            id: `solitaire-${col}-${row}`,
-            suit,
-            rank,
-            x: 100 + col * 120,
-            y: 100 + row * 30,
-            faceUp: row === col, // Only the top card is face up
-          });
-        }
-      }
-      // setCards(solitaireCards); // Cannot set local cards anymore
       console.warn("Solitaire preset load needs backend integration");
     }
   };
@@ -359,6 +393,7 @@ const App = () => {
           onClearTable={handleClearTable}
           onSavePreset={handleSavePreset}
           onLoadPreset={handleLoadPreset}
+          // sendAction={sendAction}
         />
       </div>
     </ThemeProvider>
