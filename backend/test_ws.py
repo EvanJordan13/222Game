@@ -163,3 +163,12 @@ async def test_multiple_connects_with_add_and_remove():
     await asyncio.create_task(create("Vishal"))
     await asyncio.gather(add("Evan"), add("Roshan"), subtract("Nathan"), subtract("Ben"))
     await asyncio.create_task(verify("Vishal"))
+
+@pytest.mark.asyncio
+async def test_invalid_connection():
+    async with websockets.connect("ws://127.0.0.1:8000/ws/deadbeef") as websocket:
+        await websocket.send("Ma")
+        state = await websocket.recv()
+        json_state = json.loads(state)
+        assert "status" in json_state
+        assert json_state["status"] == "error"
