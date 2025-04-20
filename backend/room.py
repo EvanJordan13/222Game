@@ -65,7 +65,20 @@ class Room:
                 return [room, deck_id]                
             case _ :
                 return [self, ""]
-
+    #initializes a hand and returns a tuple of the new room and hand id
+    #arg1 type of new hand. default empty
+    #returns a list where the first entry is the new room and the second entry is the new hand id
+    def initialize_hand(self, hand_type ="empty") -> ["Room", str]:
+        match hand_type:
+            case "empty":
+                room = copy.copy(self)
+                room.hands = copy.copy(room.hands)
+                hand_id = "empty_" + str(len(room.hands))
+                hand = Hand(hand_id= hand_id, cards=[])
+                room.hands[hand_id] = hand
+                return [room, hand_id]                
+            case _ :
+                return [self, ""]
     #splits the deck into 2 decks by making a new deck out of the top n cards.
     #arg1 name of deck to split
     #arg2 number of cards off the top to remove and put into a new deck 

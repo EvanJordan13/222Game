@@ -330,3 +330,12 @@ def test_room_move_deck():
 
     # Assert: New room's deck is in the new position
     assert new_room.decks["main"].position == [10, 20], "Deck should be moved to (10,20)"
+
+def test_room_initialize_hand():
+    original_room = Room()
+    new_room, hand_id = original_room.initialize_hand()
+
+    assert len(original_room.hands) == 0
+
+    assert len(new_room.hands) == 1
+    assert hand_id in new_room.hands
