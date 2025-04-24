@@ -314,3 +314,28 @@ def test_room_split_deck():
     # The main deck in the new room should have the remaining 4 cards (top 2 removed)
     main_deck_in_new_room = new_room.decks["main"].cards
     assert [c.card_front for c in main_deck_in_new_room] == ["A", "K", "Q", "J"]
+
+
+def test_room_move_deck():
+    # Setup: Create a deck with a known position, then place it in the room
+    original_deck = Deck(cards=[Card(card_front="Ace")])
+    original_deck.position = [0, 0]
+    room = Room(decks={"main": original_deck})
+
+    # Act: Move the deck to a new position (10, 20) in a new Room instance
+    new_room = room.move_deck("main", 10, 20)
+
+    # Assert: Original room is unchanged
+    assert room.decks["main"].position == [0, 0], "Original deck position should remain (0,0)"
+
+    # Assert: New room's deck is in the new position
+    assert new_room.decks["main"].position == [10, 20], "Deck should be moved to (10,20)"
+
+def test_room_initialize_hand():
+    original_room = Room()
+    new_room, hand_id = original_room.initialize_hand()
+
+    assert len(original_room.hands) == 0
+
+    assert len(new_room.hands) == 1
+    assert hand_id in new_room.hands

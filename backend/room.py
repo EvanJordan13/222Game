@@ -64,7 +64,20 @@ class Room:
                 return [room, deck_id]                
             case _ :
                 return [self, ""]
-
+    #initializes a hand and returns a tuple of the new room and hand id
+    #arg1 type of new hand. default empty
+    #returns a list where the first entry is the new room and the second entry is the new hand id
+    def initialize_hand(self, hand_type ="empty") -> ["Room", str]:
+        match hand_type:
+            case "empty":
+                room = copy.copy(self)
+                room.hands = copy.copy(room.hands)
+                hand_id = "empty_" + str(len(room.hands))
+                hand = Hand(hand_id= hand_id, cards=[])
+                room.hands[hand_id] = hand
+                return [room, hand_id]                
+            case _ :
+                return [self, ""]
     #splits the deck into 2 decks by making a new deck out of the top n cards.
     #arg1 name of deck to split
     #arg2 number of cards off the top to remove and put into a new deck 
@@ -147,11 +160,15 @@ class Room:
         room.decks[deck_id] = room.decks[deck_id].flip_deck()
         return room
     
-    #changes location of the deck
-    #arg1 tuple of new (x,y) location
-    def move_deck(self, deck_id, tuple) -> "Room":
+    #changes position of the deck
+    #arg1 name of deck
+    #arg2 x coord of new position
+    #arg3 y coord of new position
+    def move_deck(self, deck_id, x,y) -> "Room":
         room = copy.copy(self)
-        room.decks[deck_id] = room.decks[deck_id].move_deck()
+        room.decks = copy.copy(room.decks)
+        room.decks[deck_id] = copy.copy(room.decks[deck_id])
+        room.decks[deck_id] = room.decks[deck_id].move_deck(x, y)
         return room
     
     def remove_card_from_deck(self, deck_id: str, card_index: int) -> tuple["Room", Card | None]:

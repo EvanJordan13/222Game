@@ -21,10 +21,12 @@ app.add_middleware(
 
 room_ids = {}
 rooms = {}
-room_ids["mcI5j0Kw"] = 1
-rooms["mcI5j0Kw"] = BigRoom()
-room_ids["mcI5j0Kx"] = 1
-rooms["mcI5j0Kx"] = BigRoom()
+room_sockets = {}
+id_list = ["mcI5j0Kw", "mcI5j0Kx", "mcI5j0Ky", "mcI5j0Kz"]
+for id in id_list:
+    room_ids[id] = 1
+    rooms[id] = BigRoom()
+    room_sockets[id] = []
 
 @app.get("/")
 def root():
@@ -45,14 +47,23 @@ def join_room(request: JoinRoomRequest):
 
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(ws: WebSocket, room_id: str):
-    await ws.accept()
+    await ws.accept() 
     playerName = await ws.receive_text()
+    if room_id not in room_ids:
+        await ws.send_json({
+            "status": "error"
+        })
+        await ws.close(code=1008)
+        return
     rooms[room_id].addPlayer(playerName)
+    room_sockets[room_id].append(ws)
     await ws.send_json(JSONSerializer.serialize(rooms[room_id]))
     try:
         while True:
-            data = await ws.receive_json()
-            rooms[room_id].updateState(data)
-            await ws.send_json(JSONSerializer.serialize(rooms[room_id]))
+            action = await ws.receive_json()
+            rooms[room_id].updateState(action)
+            for socket in room_sockets[room_id]:
+                await socket.send_json(JSONSerializer.serialize(rooms[room_id]))
     except WebSocketDisconnect:
         rooms[room_id].removePlayer(playerName)
+        room_sockets[room_id].remove(ws)
