@@ -45,8 +45,14 @@ def join_room(request: JoinRoomRequest):
 
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(ws: WebSocket, room_id: str):
-    await ws.accept()
+    await ws.accept() 
     playerName = await ws.receive_text()
+    if room_id not in room_ids:
+        await ws.send_json({
+            "status": "error"
+        })
+        await ws.close(code=1008)
+        return
     rooms[room_id].addPlayer(playerName)
     await ws.send_json(JSONSerializer.serialize(rooms[room_id]))
     try:
