@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
-from typing import List, Dict
+from typing import List, Dict, Optional
 from objects import Deck, Hand, Card
 import copy 
 import random
+import uuid
 
 @dataclass 
 class Room:
@@ -118,10 +119,25 @@ class Room:
     #arg1 name of deck
     #arg2 card idx to flip. default 0
     #arg3 bool for if the card is now face_up. default to flipping to what it currently isn't
-    def flip_deck_card(self, deck_id, idx=0, face_up = None) -> "Room":
+    def flip_deck_card(self, deck_id: str, idx: int = 0, face_up: Optional[bool] = None) -> "Room":
+        if deck_id not in self.decks:
+            print(f"Error: Deck {deck_id} not found for flip_deck_card.")
+            return self 
+
+        deck = self.decks[deck_id]
+
+        if not (0 <= idx < len(deck.cards)):
+            print(f"Error: Index {idx} out of bounds for deck {deck_id} with {len(deck.cards)} cards.")
+            return self
+
         room = copy.copy(self)
-        room.decks[deck_id] = copy.copy(room.decks[deck_id])
+        room.decks = copy.copy(room.decks) 
+
+        room.decks[deck_id] = copy.deepcopy(deck)
+
         room.decks[deck_id].cards[idx] = room.decks[deck_id].cards[idx].flip(face_up)
+        print(f"Flipped card at index {idx} in deck {deck_id}. New faceUp: {room.decks[deck_id].cards[idx].face_up}")
+
         return room
     
     #flips the deck. reverses the order and flips face up to face down and viceversa
@@ -138,6 +154,41 @@ class Room:
     def move_deck(self, deck_id, tuple) -> "Room":
         room = copy.copy(self)
         room.decks[deck_id] = room.decks[deck_id].move_deck()
+        return room
+    
+    def remove_card_from_deck(self, deck_id: str, card_index: int) -> tuple["Room", Card | None]:
+        """
+        Removes the card at the specified index from the deck.
+        Index 0 is the bottom card, index len(cards)-1 is the top card.
+        Returns the updated Room and the removed Card, or (self, None) if invalid.
+        """
+        if deck_id not in self.decks:
+            print(f"Error: Deck {deck_id} not found for remove_card_from_deck.")
+            return self, None
+        deck = self.decks[deck_id]
+        if not (0 <= card_index < len(deck.cards)):
+            print(f"Error: Index {card_index} out of bounds for deck {deck_id} with {len(deck.cards)} cards.")
+            return self, None
+
+        room = copy.copy(self)
+        room.decks = copy.copy(room.decks)
+        room.decks[deck_id] = copy.deepcopy(deck)
+
+        removed_card = room.decks[deck_id].cards.pop(card_index)
+
+        if not room.decks[deck_id].cards:
+            print(f"Deck {deck_id} is now empty after removing card, removing deck.")
+            del room.decks[deck_id]
+
+        return room, removed_card
+
+    def add_deck(self, deck: Deck) -> "Room":
+        #Adds a new Deck object to the room's decks.
+        if deck.id in self.decks:
+            print(f"Warning: Deck with ID {deck.id} already exists. Overwriting.")
+        room = copy.copy(self)
+        room.decks = copy.copy(room.decks)
+        room.decks[deck.id] = deck
         return room
 
     ##########################

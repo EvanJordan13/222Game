@@ -1,8 +1,9 @@
 from room import Room
-from objects import Card
+from objects import Card, Deck
 from typing import List
 from dataclasses import dataclass, field
 from dataclasses_serialization.json import JSONSerializer
+import uuid
 
 @dataclass
 class BigRoom:
@@ -40,6 +41,28 @@ class BigRoom:
             self.room = self.room.add_top(a["args"]["deck_id"], card)
         elif a["action"] == "flip_deck_card":
             self.room = self.room.flip_deck_card(a["args"]["deck_id"], a["args"]["idx"], a["args"]["face_up"])
+        elif a["action"] == "move_card":
+            deck_id = a["args"].get("deck_id")
+            card_index = a["args"].get("card_index") 
+            new_position = a["args"].get("new_position")
+
+            if deck_id is not None and card_index is not None and new_position is not None:
+                print(f"Action: move_card from deck {deck_id} at index {card_index} to {new_position}")
+                updated_room, removed_card = self.room.remove_card_from_deck(deck_id, card_index)
+                self.room = updated_room
+
+                if removed_card:
+                    # Create a new deck for the single card
+                    new_deck_id = f"card_{uuid.uuid4()}" # Generate unique ID
+                    new_deck = Deck(id=new_deck_id, position=new_position, cards=[removed_card])
+                    print(f"  -> Created new single-card deck {new_deck_id} for card {removed_card.card_front}")
+
+                    #Add the new deck to the room
+                    self.room = self.room.add_deck(new_deck)
+                else:
+                    print(f"  -> Failed to remove card {deck_id}[{card_index}], cannot move.")
+            else:
+                print("Error: move_card action missing 'deck_id', 'card_index', or 'new_position'")    
         elif a["action"] == "deck_peek":
             # discuss at meeting
             pass
