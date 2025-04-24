@@ -1,8 +1,9 @@
-from backend.room import Room
-from backend.objects import Card
+from room import Room
+from objects import Card
 from typing import List
 from dataclasses import dataclass, field
 from dataclasses_serialization.json import JSONSerializer
+from fastapi import WebSocket
 
 @dataclass
 class BigRoom:
@@ -14,6 +15,9 @@ class BigRoom:
     
     def removePlayer(self, playerName):
         self.players.remove(playerName)
+    
+    def getSockets(self):
+        return self.sockets
 
     def numPlayers(self):
         return len(self.players)
