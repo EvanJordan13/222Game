@@ -2,8 +2,6 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 from objects import Deck, Hand, Card
 import copy 
-import random
-import uuid
 
 @dataclass 
 class Room:
@@ -159,15 +157,12 @@ class Room:
     def remove_card_from_deck(self, deck_id: str, card_index: int) -> tuple["Room", Card | None]:
         """
         Removes the card at the specified index from the deck.
-        Index 0 is the bottom card, index len(cards)-1 is the top card.
         Returns the updated Room and the removed Card, or (self, None) if invalid.
         """
         if deck_id not in self.decks:
-            print(f"Error: Deck {deck_id} not found for remove_card_from_deck.")
             return self, None
         deck = self.decks[deck_id]
         if not (0 <= card_index < len(deck.cards)):
-            print(f"Error: Index {card_index} out of bounds for deck {deck_id} with {len(deck.cards)} cards.")
             return self, None
 
         room = copy.copy(self)
@@ -177,15 +172,13 @@ class Room:
         removed_card = room.decks[deck_id].cards.pop(card_index)
 
         if not room.decks[deck_id].cards:
-            print(f"Deck {deck_id} is now empty after removing card, removing deck.")
             del room.decks[deck_id]
 
         return room, removed_card
 
     def add_deck(self, deck: Deck) -> "Room":
         #Adds a new Deck object to the room's decks.
-        if deck.id in self.decks:
-            print(f"Warning: Deck with ID {deck.id} already exists. Overwriting.")
+        
         room = copy.copy(self)
         room.decks = copy.copy(room.decks)
         room.decks[deck.id] = deck
