@@ -1,5 +1,5 @@
-from room import Room
-from objects import Card
+from backend.room import Room
+from backend.objects import Card
 from typing import List
 from dataclasses import dataclass, field
 from dataclasses_serialization.json import JSONSerializer
