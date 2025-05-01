@@ -19,6 +19,7 @@ import {
   ListItem,
   ListItemText,
   FormControl,
+  SelectChangeEvent,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import {
@@ -28,9 +29,33 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   Settings as SettingsIcon,
+  Shuffle as ShuffleIcon,
+  GetApp as GetAppIcon,
+  Deck as DeckIcon,
 } from "@mui/icons-material";
 
-// Styled components
+interface Preset {
+  id: number | string;
+  name: string;
+  description: string;
+}
+
+interface GameUIProps {
+  onAddCard: (options: { suit: string; rank: string; faceUp: boolean }) => void;
+  onInitializeDeck: () => void;
+  onShuffleDeck: () => void;
+  onRemoveTopCard: (count?: number) => void;
+  onClearTable: () => void;
+  onSavePreset: (preset: Preset) => void;
+  onLoadPreset: (preset: Preset) => void;
+}
+
+interface CardOptions {
+  suit: string;
+  rank: string;
+  faceUp: boolean;
+}
+
 const DrawerHeader = styled("div")(({ theme }) => ({
   display: "flex",
   alignItems: "center",
@@ -41,7 +66,18 @@ const DrawerHeader = styled("div")(({ theme }) => ({
   color: theme.palette.primary.contrastText,
 }));
 
-const TabPanel = ({ children, value, index, ...other }) => {
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+const TabPanel: React.FC<TabPanelProps> = ({
+  children,
+  value,
+  index,
+  ...other
+}) => {
   return (
     <div
       role="tabpanel"
@@ -55,74 +91,78 @@ const TabPanel = ({ children, value, index, ...other }) => {
   );
 };
 
-const GameUI = ({
+const GameUI: React.FC<GameUIProps> = ({
   onAddCard,
-  onDealCards,
+  onInitializeDeck,
+  onShuffleDeck,
+  onRemoveTopCard,
   onClearTable,
   onSavePreset,
   onLoadPreset,
 }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState(0);
-  const [presets, setPresets] = useState([
-    { id: 1, name: "Poker", description: "Standard 5-card draw poker" },
-    { id: 2, name: "Solitaire", description: "Classic solitaire setup" },
-    { id: 3, name: "Blackjack", description: "Casino-style blackjack" },
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<number>(0);
+  const [presets, setPresets] = useState<Preset[]>([
+    { id: 1, name: "Poker", description: "Standard 5-card draw" },
+    { id: 2, name: "Solitaire", description: "Classic setup" },
   ]);
-  const [newPresetName, setNewPresetName] = useState("");
-  const [cardOptions, setCardOptions] = useState({
+  const [newPresetName, setNewPresetName] = useState<string>("");
+  const [cardOptions, setCardOptions] = useState<CardOptions>({
     suit: "hearts",
     rank: "ace",
     faceUp: true,
   });
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 
-  const handleAddCard = () => {
-    if (onAddCard) {
-      onAddCard({
-        id: `card-${Date.now()}`,
-        suit: cardOptions.suit,
-        rank: cardOptions.rank,
-        x: Math.random() * 400 + 100,
-        y: Math.random() * 200 + 100,
-        faceUp: cardOptions.faceUp,
-      });
-    }
+  const handleAddCardClick = () => {
+    onAddCard(cardOptions);
   };
 
-  const handleDealCards = (count) => {
-    if (onDealCards) {
-      onDealCards(count);
-    }
-  };
+  const handleInitializeDeckClick = () => onInitializeDeck();
+  const handleShuffleDeckClick = () => onShuffleDeck();
+  const handleRemoveTopCardClick = () => onRemoveTopCard(1);
+  const handleClearTableClick = () => onClearTable();
 
-  const handleSavePreset = () => {
-    if (newPresetName.trim() && onSavePreset) {
-      const newPreset = {
-        id: Date.now(),
-        name: newPresetName,
+  const handleSavePresetClick = () => {
+    if (newPresetName.trim()) {
+      const newPreset: Preset = {
+        id: `preset-${Date.now()}`,
+        name: newPresetName.trim(),
         description: "Custom user preset",
       };
-      setPresets([...presets, newPreset]);
+      setPresets((prev) => [...prev, newPreset]);
       setNewPresetName("");
       onSavePreset(newPreset);
     }
   };
 
-  const handleLoadPreset = (preset) => {
-    if (onLoadPreset) {
-      onLoadPreset(preset);
-    }
+  const handleLoadPresetClick = (preset: Preset) => {
+    onLoadPreset(preset);
   };
 
-  // Toggle button outside drawer
+  const handleSuitChange = (event: SelectChangeEvent<string>) => {
+    setCardOptions((prev) => ({ ...prev, suit: event.target.value }));
+  };
+
+  const handleRankChange = (event: SelectChangeEvent<string>) => {
+    setCardOptions((prev) => ({ ...prev, rank: event.target.value }));
+  };
+
+  const handleFaceUpChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setCardOptions((prev) => ({ ...prev, faceUp: event.target.checked }));
+  };
+
+  const handlePresetNameChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setNewPresetName(event.target.value);
+  };
+
   const toggleButton = (
     <IconButton
       onClick={toggleMenu}
@@ -138,11 +178,10 @@ const GameUI = ({
         borderBottomRightRadius: isMenuOpen ? 4 : 0,
         borderTopLeftRadius: isMenuOpen ? 0 : 4,
         borderBottomLeftRadius: isMenuOpen ? 0 : 4,
-        "&:hover": {
-          backgroundColor: "primary.dark",
-        },
+        "&:hover": { backgroundColor: "primary.dark" },
         zIndex: 1300,
       }}
+      aria-label={isMenuOpen ? "Close menu" : "Open menu"}
     >
       {isMenuOpen ? <ChevronRightIcon /> : <ChevronLeftIcon />}
     </IconButton>
@@ -168,7 +207,8 @@ const GameUI = ({
       >
         <DrawerHeader>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1, pl: 1 }}>
-            Card Game Sandbox
+            {" "}
+            Card Sandbox{" "}
           </Typography>
         </DrawerHeader>
 
@@ -194,11 +234,11 @@ const GameUI = ({
           </Tabs>
         </Box>
 
-        {/* Cards Tab */}
         <TabPanel value={activeTab} index={0}>
           <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              Add Card
+              {" "}
+              Add Card{" "}
             </Typography>
             <Box
               sx={{
@@ -214,73 +254,60 @@ const GameUI = ({
                   labelId="suit-select-label"
                   value={cardOptions.suit}
                   label="Suit"
-                  onChange={(e) =>
-                    setCardOptions({ ...cardOptions, suit: e.target.value })
-                  }
+                  onChange={handleSuitChange}
                 >
-                  <MenuItem value="hearts">Hearts</MenuItem>
+                  <MenuItem value="hearts">Hearts</MenuItem>{" "}
                   <MenuItem value="diamonds">Diamonds</MenuItem>
-                  <MenuItem value="clubs">Clubs</MenuItem>
+                  <MenuItem value="clubs">Clubs</MenuItem>{" "}
                   <MenuItem value="spades">Spades</MenuItem>
                 </Select>
               </FormControl>
-
               <FormControl fullWidth size="small">
                 <InputLabel id="rank-select-label">Rank</InputLabel>
                 <Select
                   labelId="rank-select-label"
                   value={cardOptions.rank}
                   label="Rank"
-                  onChange={(e) =>
-                    setCardOptions({ ...cardOptions, rank: e.target.value })
-                  }
+                  onChange={handleRankChange}
                 >
                   <MenuItem value="ace">Ace</MenuItem>
-                  <MenuItem value="2">2</MenuItem>
-                  <MenuItem value="3">3</MenuItem>
-                  <MenuItem value="4">4</MenuItem>
-                  <MenuItem value="5">5</MenuItem>
-                  <MenuItem value="6">6</MenuItem>
-                  <MenuItem value="7">7</MenuItem>
-                  <MenuItem value="8">8</MenuItem>
-                  <MenuItem value="9">9</MenuItem>
-                  <MenuItem value="10">10</MenuItem>
-                  <MenuItem value="jack">Jack</MenuItem>
-                  <MenuItem value="queen">Queen</MenuItem>
+                  {[...Array(9)].map((_, i) => (
+                    <MenuItem key={i + 2} value={`${i + 2}`}>
+                      {i + 2}
+                    </MenuItem>
+                  ))}
+                  <MenuItem value="jack">Jack</MenuItem>{" "}
+                  <MenuItem value="queen">Queen</MenuItem>{" "}
                   <MenuItem value="king">King</MenuItem>
                 </Select>
               </FormControl>
             </Box>
-
             <FormControlLabel
               control={
                 <Checkbox
                   checked={cardOptions.faceUp}
-                  onChange={(e) =>
-                    setCardOptions({ ...cardOptions, faceUp: e.target.checked })
-                  }
+                  onChange={handleFaceUpChange}
                 />
               }
               label="Face Up"
               sx={{ mb: 2 }}
             />
-
             <Button
               variant="contained"
               fullWidth
               startIcon={<AddIcon />}
-              onClick={handleAddCard}
+              onClick={handleAddCardClick}
               sx={{ mb: 2 }}
             >
-              Add Card
+              {" "}
+              Add Card To Top{" "}
             </Button>
           </Box>
-
           <Divider sx={{ my: 2 }} />
-
           <Box>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              Quick Actions
+              {" "}
+              Deck Actions{" "}
             </Typography>
             <Box
               sx={{
@@ -293,34 +320,49 @@ const GameUI = ({
               <Button
                 variant="contained"
                 color="secondary"
-                onClick={() => handleDealCards(5)}
+                startIcon={<DeckIcon />}
+                onClick={handleInitializeDeckClick}
               >
-                Deal 5 Cards
+                {" "}
+                Initialize Deck{" "}
               </Button>
               <Button
                 variant="contained"
                 color="secondary"
-                onClick={() => handleDealCards(7)}
+                startIcon={<ShuffleIcon />}
+                onClick={handleShuffleDeckClick}
               >
-                Deal 7 Cards
+                {" "}
+                Shuffle Deck{" "}
+              </Button>
+              <Button
+                variant="contained"
+                color="secondary"
+                startIcon={
+                  <GetAppIcon style={{ transform: "rotate(180deg)" }} />
+                }
+                onClick={handleRemoveTopCardClick}
+              >
+                {" "}
+                Remove Top Card{" "}
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleClearTableClick}
+              >
+                {" "}
+                Clear Table{" "}
               </Button>
             </Box>
-            <Button
-              variant="contained"
-              color="error"
-              fullWidth
-              startIcon={<DeleteIcon />}
-              onClick={onClearTable}
-            >
-              Clear Table
-            </Button>
           </Box>
         </TabPanel>
 
-        {/* Presets Tab */}
         <TabPanel value={activeTab} index={1}>
           <Typography variant="subtitle1" sx={{ mb: 1 }}>
-            Load Preset
+            {" "}
+            Load Preset{" "}
           </Typography>
           <List sx={{ mb: 3 }}>
             {presets.map((preset) => (
@@ -330,26 +372,24 @@ const GameUI = ({
                 sx={{
                   mb: 1,
                   cursor: "pointer",
-                  "&:hover": {
-                    bgcolor: "action.hover",
-                  },
+                  "&:hover": { bgcolor: "action.hover" },
                 }}
-                onClick={() => handleLoadPreset(preset)}
+                onClick={() => handleLoadPresetClick(preset)}
               >
                 <ListItem>
+                  {" "}
                   <ListItemText
                     primary={preset.name}
                     secondary={preset.description}
-                  />
+                  />{" "}
                 </ListItem>
               </Paper>
             ))}
           </List>
-
           <Divider sx={{ my: 2 }} />
-
           <Typography variant="subtitle1" sx={{ mb: 1 }}>
-            Save Current Setup
+            {" "}
+            Save Current Setup{" "}
           </Typography>
           <TextField
             fullWidth
@@ -357,7 +397,7 @@ const GameUI = ({
             label="Preset name"
             variant="outlined"
             value={newPresetName}
-            onChange={(e) => setNewPresetName(e.target.value)}
+            onChange={handlePresetNameChange}
             sx={{ mb: 2 }}
           />
           <Button
@@ -365,16 +405,17 @@ const GameUI = ({
             color="success"
             fullWidth
             startIcon={<SaveIcon />}
-            onClick={handleSavePreset}
+            onClick={handleSavePresetClick}
           >
-            Save Preset
+            {" "}
+            Save Preset{" "}
           </Button>
         </TabPanel>
 
-        {/* Settings Tab */}
         <TabPanel value={activeTab} index={2}>
           <Typography variant="subtitle1" sx={{ mb: 1 }}>
-            Appearance
+            {" "}
+            Appearance{" "}
           </Typography>
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel id="table-color-label">Table Color</InputLabel>
@@ -389,7 +430,6 @@ const GameUI = ({
               <MenuItem value="black">Black</MenuItem>
             </Select>
           </FormControl>
-
           <FormControl fullWidth size="small" sx={{ mb: 3 }}>
             <InputLabel id="card-back-label">Card Back</InputLabel>
             <Select
@@ -402,11 +442,10 @@ const GameUI = ({
               <MenuItem value="custom">Custom</MenuItem>
             </Select>
           </FormControl>
-
           <Divider sx={{ my: 2 }} />
-
           <Typography variant="subtitle1" sx={{ mb: 1 }}>
-            Game Rules
+            {" "}
+            Game Rules{" "}
           </Typography>
           <FormControlLabel
             control={<Checkbox />}
@@ -418,21 +457,20 @@ const GameUI = ({
             label="Snap cards to grid"
             sx={{ display: "block", mb: 3 }}
           />
-
           <Divider sx={{ my: 2 }} />
-
           <Typography variant="subtitle1" sx={{ mb: 1 }}>
-            Controls
+            {" "}
+            Controls{" "}
           </Typography>
           <Paper elevation={1} sx={{ p: 2 }}>
             <Box
               sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}
             >
-              <Typography variant="body2">Pan Camera:</Typography>
+              <Typography variant="body2">Pan Camera:</Typography>{" "}
               <Typography variant="body2">Drag or Arrow Keys</Typography>
-              <Typography variant="body2">Move Card:</Typography>
+              <Typography variant="body2">Move Card:</Typography>{" "}
               <Typography variant="body2">Click + Drag</Typography>
-              <Typography variant="body2">Flip Card:</Typography>
+              <Typography variant="body2">Flip Card:</Typography>{" "}
               <Typography variant="body2">Double Click</Typography>
             </Box>
           </Paper>
