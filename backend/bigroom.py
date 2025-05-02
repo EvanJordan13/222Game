@@ -78,6 +78,19 @@ class BigRoom:
 
                     #Add the new deck to the room
                         self.room = self.room.add_deck(new_deck)
+                case "combine_cards_into_deck":
+                    dragged_deck_id = a["args"].get("dragged_deck_id")
+                    dragged_card_index = a["args"].get("dragged_card_index")
+                    target_deck_id = a["args"].get("target_deck_id")
+                    target_card_index = a["args"].get("target_card_index") 
+
+                    if all([dragged_deck_id, dragged_card_index is not None, target_deck_id, target_card_index is not None]):
+                         self.room = self.room.combine_cards_into_deck(
+                             dragged_deck_id,
+                             dragged_card_index,
+                             target_deck_id,
+                             target_card_index
+                         )
                     else:
                         print(f"  -> Failed to remove card {deck_id}[{card_index}], cannot move.")
  
