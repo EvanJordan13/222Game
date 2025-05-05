@@ -200,6 +200,26 @@ class Room:
         room.decks = copy.copy(room.decks)
         room.decks[deck.id] = deck
         return room
+    
+    def combine_cards_into_deck(self, dragged_deck_id: str, dragged_card_index: int, target_deck_id: str, target_card_index: int) -> "Room":
+        if dragged_deck_id not in self.decks or target_deck_id not in self.decks:
+            return self
+        dragged_deck = self.decks[dragged_deck_id]
+        target_deck = self.decks[target_deck_id]
+        if not (0 <= dragged_card_index < len(dragged_deck.cards)):
+            return self
+        if not (0 <= target_card_index < len(target_deck.cards)):
+             return self
+        if dragged_deck_id == target_deck_id and len(dragged_deck.cards) == 1:
+            return self
+
+        room_after_remove, dragged_card = self.remove_card_from_deck(dragged_deck_id, dragged_card_index)
+        if dragged_card is None:
+            return self
+
+        final_room = room_after_remove.add_top(target_deck_id, dragged_card)
+
+        return final_room    
 
     ##########################
     ### Hand Manipulations ###

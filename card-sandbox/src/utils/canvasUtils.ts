@@ -1,3 +1,4 @@
+import Camera from "./camera";
 interface Card {
   id: string;
   x: number;
@@ -7,19 +8,12 @@ interface Card {
   rank: string;
   backendDeckId?: string;
   backendIndex?: number;
+  isDraggingDeck?: boolean;
 }
 
 interface Dimensions {
   width: number;
   height: number;
-}
-
-interface Camera {
-  x: number;
-  y: number;
-  zoom: number;
-  vx?: number;
-  vy?: number;
 }
 
 export const CARD_WIDTH: number = 120;
@@ -53,13 +47,7 @@ export const drawTable = (
   dimensions: Dimensions,
   camera: Camera
 ): void => {
-  if (
-    !ctx ||
-    !dimensions ||
-    !camera ||
-    typeof camera.x !== "number" ||
-    typeof camera.y !== "number"
-  ) {
+  if (!ctx || !dimensions || !camera) {
     console.error("drawTable called with invalid arguments", {
       ctx,
       dimensions,
@@ -69,30 +57,53 @@ export const drawTable = (
   }
 
   const { width, height } = dimensions;
-  const { x: camX, y: camY } = camera;
+  const { x: camX, y: camY } = camera.position;
+  const camZoom = camera.zoom;
 
   ctx.fillStyle = "#076324";
   ctx.fillRect(0, 0, width, height);
 
-  const patternOffsetX = -camX % TABLE_GRID_SIZE;
-  const patternOffsetY = -camY % TABLE_GRID_SIZE;
-
   ctx.save();
-  ctx.fillStyle = "#0a7c2e";
-  ctx.translate(patternOffsetX, patternOffsetY);
+  const worldToScreenMat = camera.worldToScreen(dimensions);
+  ctx.setTransform(
+    worldToScreenMat.a,
+    worldToScreenMat.b,
+    worldToScreenMat.c,
+    worldToScreenMat.d,
+    worldToScreenMat.e,
+    worldToScreenMat.f
+  );
 
-  const numX = Math.ceil((width - patternOffsetX) / TABLE_GRID_SIZE) + 1;
-  const numY = Math.ceil((height - patternOffsetY) / TABLE_GRID_SIZE) + 1;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+  const viewPortWidthWorld = width / camZoom;
+  const viewPortHeightWorld = height / camZoom;
+  const startX =
+    Math.floor((camX - viewPortWidthWorld / 2) / TABLE_GRID_SIZE) *
+    TABLE_GRID_SIZE;
+  const startY =
+    Math.floor((camY - viewPortHeightWorld / 2) / TABLE_GRID_SIZE) *
+    TABLE_GRID_SIZE;
+  const endX =
+    Math.ceil((camX + viewPortWidthWorld / 2) / TABLE_GRID_SIZE) *
+    TABLE_GRID_SIZE;
+  const endY =
+    Math.ceil((camY + viewPortHeightWorld / 2) / TABLE_GRID_SIZE) *
+    TABLE_GRID_SIZE;
 
-  for (let i = 0; i < numX; i++) {
-    for (let j = 0; j < numY; j++) {
+  for (let gx = startX; gx < endX; gx += TABLE_GRID_SIZE) {
+    for (let gy = startY; gy < endY; gy += TABLE_GRID_SIZE) {
       ctx.beginPath();
-      const dotX = i * TABLE_GRID_SIZE + TABLE_GRID_SIZE / 2;
-      const dotY = j * TABLE_GRID_SIZE + TABLE_GRID_SIZE / 2;
-      ctx.arc(dotX, dotY, 1, 0, Math.PI * 2);
+      ctx.arc(
+        gx + TABLE_GRID_SIZE / 2,
+        gy + TABLE_GRID_SIZE / 2,
+        1 / camZoom,
+        0,
+        Math.PI * 2
+      );
       ctx.fill();
     }
   }
+
   ctx.restore();
 
   ctx.strokeStyle = "#8B4513";
@@ -106,14 +117,12 @@ const drawCardBackPattern = (
   y: number
 ): void => {
   ctx.save();
-
   const inset = 8;
   const patternAreaX = x + inset;
   const patternAreaY = y + inset;
   const patternAreaWidth = CARD_WIDTH - 2 * inset;
   const patternAreaHeight = CARD_HEIGHT - 2 * inset;
 
-  ctx.beginPath();
   roundedRect(
     ctx,
     patternAreaX,
@@ -126,12 +135,12 @@ const drawCardBackPattern = (
 
   ctx.fillStyle = "#0F52BA";
   const patternSize = 12;
-  for (let i = 0; i < patternAreaWidth; i += patternSize) {
-    for (let j = 0; j < patternAreaHeight; j += patternSize) {
-      if ((i / patternSize + j / patternSize) % 2 === 0) {
+  for (let i = 0; i < patternAreaWidth + patternSize; i += patternSize) {
+    for (let j = 0; j < patternAreaHeight + patternSize; j += patternSize) {
+      if (((i / patternSize) ^ (j / patternSize)) & 1) {
         ctx.fillRect(
-          patternAreaX + i,
-          patternAreaY + j,
+          patternAreaX + i - patternSize / 2,
+          patternAreaY + j - patternSize / 2,
           patternSize,
           patternSize
         );
@@ -192,14 +201,16 @@ export const drawCard = (
   x: number,
   y: number,
   faceUp: boolean = true,
-  selected: boolean = false
+  selected: boolean = false,
+  deckSelected: boolean = false
 ): void => {
   ctx.save();
-
-  ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
-  ctx.shadowBlur = selected ? 10 : 5;
-  ctx.shadowOffsetX = 3;
-  ctx.shadowOffsetY = 3;
+  ctx.shadowColor = deckSelected
+    ? "rgba(0, 150, 255, 0.7)"
+    : "rgba(0, 0, 0, 0.3)";
+  ctx.shadowBlur = selected ? 15 : deckSelected ? 12 : 5;
+  ctx.shadowOffsetX = selected || deckSelected ? 4 : 3;
+  ctx.shadowOffsetY = selected || deckSelected ? 4 : 3;
 
   roundedRect(ctx, x, y, CARD_WIDTH, CARD_HEIGHT, CARD_RADIUS);
 
@@ -211,8 +222,8 @@ export const drawCard = (
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
 
-  ctx.strokeStyle = selected ? "#FFD700" : "#333";
-  ctx.lineWidth = selected ? 3 : 1;
+  ctx.strokeStyle = selected ? "#FFD700" : deckSelected ? "#0096FF" : "#333";
+  ctx.lineWidth = selected ? 4 : deckSelected ? 3 : 1;
   ctx.stroke();
 
   if (faceUp && card) {
@@ -221,7 +232,6 @@ export const drawCard = (
     const color = ["hearts", "diamonds"].includes(card.suit?.toLowerCase())
       ? "#E53E3E"
       : "#1A202C";
-
     ctx.fillStyle = color;
     const cornerFontSize = 24;
     const centerFontSize = 48;
@@ -262,19 +272,17 @@ export const drawDeck = (
   x: number,
   y: number,
   count: number,
-  faceUp: boolean = false
+  faceUp: boolean = false,
+  deckSelected: boolean = false
 ): void => {
   if (count <= 0) return;
-
   const maxVisibleCards = 10;
   const drawCount = Math.min(count, maxVisibleCards);
   const stepOffset = 2;
 
   for (let i = 0; i < drawCount; i++) {
-    const cardIndex = count - 1 - i;
     const offsetX = (drawCount - 1 - i) * stepOffset;
     const offsetY = (drawCount - 1 - i) * stepOffset;
-
     const isTopCard = i === drawCount - 1;
     drawCard(
       ctx,
@@ -282,7 +290,8 @@ export const drawDeck = (
       x + offsetX,
       y + offsetY,
       isTopCard ? faceUp : false,
-      false
+      false,
+      deckSelected
     );
   }
 };
