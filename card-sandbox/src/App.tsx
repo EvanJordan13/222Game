@@ -15,12 +15,12 @@ import CardCanvas from "./components/CardCanvas";
 import GameUI from "./components/GameUI";
 import GameHUD from "./components/GameHUD";
 import { CARD_WIDTH, CARD_HEIGHT } from "./utils/canvasUtils";
+import Camera from "./utils/camera";
 
 interface Position {
   x: number;
   y: number;
 }
-
 interface CardData {
   id: string;
   x: number;
@@ -32,21 +32,23 @@ interface CardData {
   backendIndex: number;
   backendCardRef: any;
 }
-
 interface BackendDeck {
   id: string;
   cards: any[];
   position: [number, number];
 }
-
 interface BackendRoom {
   decks: { [key: string]: BackendDeck };
   players: string[];
   hands: { [key: string]: any };
 }
-
 interface GameState {
   room: BackendRoom;
+}
+export interface Preset {
+  id: number | string;
+  name: string;
+  description: string;
 }
 
 type DragMode =
@@ -55,21 +57,17 @@ type DragMode =
   | "potential_deck_drag"
   | "deck_drag"
   | "card_drag";
-
 interface DraggedItemInfo {
   id: string;
   type: "card" | "deck";
   currentPos: Position;
   offsetX: number;
   offsetY: number;
-
   backendDeckId?: string;
   backendIndex?: number;
-
   originalDeckPos?: Position;
   cardIdsInDeck?: string[];
 }
-
 interface PotentialDeckDragInfo {
   mode: "potential_deck_drag";
   cardId: string;
@@ -82,13 +80,14 @@ interface PotentialDeckDragInfo {
 interface PanInfo {
   mode: "panning";
   startScreenPos: Position;
+  lastScreenPos?: Position;
 }
 type DragState = PotentialDeckDragInfo | PanInfo | { mode: "none" };
 
-export interface Preset {
-  id: number | string;
-  name: string;
-  description: string;
+interface OverlapResult {
+  type: "card" | "deck";
+  targetCard?: CardData;
+  targetDeckId: string;
 }
 
 const darkTheme = createTheme({
@@ -125,17 +124,26 @@ const App: React.FC = () => {
   const dragStateRef = useRef<DragState>({ mode: "none" });
   const [draggedItemInfo, setDraggedItemInfo] =
     useState<DraggedItemInfo | null>(null);
+  const cameraRef = useRef<Camera>(Camera.new());
+  const [renderTrigger, setRenderTrigger] = useState<number>(0);
 
   const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const deckDragTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isMounted = useRef<boolean>(false);
   const latestGameState = useRef<GameState | null>(null);
+  const previousVisualCardsRef = useRef<string>("[]");
 
   const backendUrl = "ws://127.0.0.1:8000";
   const roomId = "mcI5j0Kw";
   const [playerName] = useState<string>(
     () => "Player" + Math.floor(Math.random() * 100)
   );
+
+  const triggerRender = useCallback(() => {
+    if (isMounted.current) {
+      setRenderTrigger(Date.now());
+    }
+  }, []);
 
   const sendAction = useCallback((actionData: any) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
@@ -155,27 +163,22 @@ const App: React.FC = () => {
   useEffect(() => {
     isMounted.current = true;
     if (!roomId || !playerName) return;
-
     const wsUrl = `${backendUrl}/ws/${roomId}`;
     let reconnectTimeout: NodeJS.Timeout | null = null;
     let currentWsInstance: WebSocket | null = null;
     let closedIntentionally = false;
-
     const connect = () => {
       if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
       connectTimeoutRef.current = null;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       reconnectTimeout = null;
-
       if (ws.current && ws.current !== currentWsInstance) {
         ws.current.close(1000, "Stale connection replaced");
       }
-
       const newWs = new WebSocket(wsUrl);
       currentWsInstance = newWs;
       ws.current = newWs;
       closedIntentionally = false;
-
       newWs.onopen = () => {
         if (newWs !== ws.current) return;
         setIsConnected(true);
@@ -189,7 +192,6 @@ const App: React.FC = () => {
           connectTimeoutRef.current = null;
         }, 150);
       };
-
       newWs.onclose = (event: CloseEvent) => {
         if (newWs !== ws.current || closedIntentionally) return;
         setIsConnected(false);
@@ -197,6 +199,7 @@ const App: React.FC = () => {
         setVisualCards([]);
         setDraggedItemInfo(null);
         dragStateRef.current = { mode: "none" };
+        previousVisualCardsRef.current = "[]";
         if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
         connectTimeoutRef.current = null;
         if (reconnectTimeout) clearTimeout(reconnectTimeout);
@@ -204,14 +207,12 @@ const App: React.FC = () => {
           reconnectTimeout = setTimeout(connect, 5000);
         }
       };
-
       newWs.onerror = (event: Event) => {
         if (newWs !== ws.current) return;
         console.error("WS Error:", event);
         if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
         connectTimeoutRef.current = null;
       };
-
       newWs.onmessage = (event: MessageEvent) => {
         if (newWs !== ws.current) return;
         try {
@@ -221,9 +222,7 @@ const App: React.FC = () => {
         }
       };
     };
-
     connect();
-
     return () => {
       isMounted.current = false;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
@@ -231,7 +230,6 @@ const App: React.FC = () => {
       connectTimeoutRef.current = null;
       if (deckDragTimerRef.current) clearTimeout(deckDragTimerRef.current);
       deckDragTimerRef.current = null;
-
       if (currentWsInstance) {
         closedIntentionally = true;
         currentWsInstance.onopen = null;
@@ -255,7 +253,6 @@ const App: React.FC = () => {
             let suit = "unknown",
               rank = "?";
             const cardFrontString: string = backendCard.card_front || "";
-
             const uniqueCardId = `${deckId}-${
               cardFrontString || `card${indexInDeck}`
             }-${indexInDeck}`;
@@ -270,7 +267,6 @@ const App: React.FC = () => {
                 { A: "ace", K: "king", Q: "queen", J: "jack" }[rankStr] ||
                 rankStr;
             }
-
             const cardData: CardData = {
               faceUp: backendCard.face_up === true,
               suit,
@@ -287,12 +283,15 @@ const App: React.FC = () => {
         }
       });
     }
-
     const newCardsStr = JSON.stringify(newVisualCards);
-    if (newCardsStr !== JSON.stringify(visualCards)) {
+    if (newCardsStr !== previousVisualCardsRef.current) {
       setVisualCards(newVisualCards);
+      previousVisualCardsRef.current = newCardsStr;
+      if (draggedItemInfo) {
+        setDraggedItemInfo(null);
+      }
     }
-  }, [gameState]);
+  }, [gameState, draggedItemInfo]);
 
   const cardMapForSelection = useMemo<{ [key: string]: number }>(() => {
     const map: { [key: string]: number } = {};
@@ -306,18 +305,14 @@ const App: React.FC = () => {
     (cardIndex: number, worldPos: Position, screenPos: Position) => {
       const cardData = visualCards[cardIndex];
       if (!cardData || !latestGameState.current?.room?.decks) return;
-
       setSelectedCardId(cardData.id);
       setSelectedDeckId(null);
       setDraggedItemInfo(null);
       dragStateRef.current = { mode: "none" };
-
       if (deckDragTimerRef.current) clearTimeout(deckDragTimerRef.current);
-
       const timerId = setTimeout(() => {
         const currentState = latestGameState.current;
         if (!currentState?.room?.decks) return;
-
         if (
           dragStateRef.current.mode === "potential_deck_drag" &&
           (dragStateRef.current as PotentialDeckDragInfo).cardId === cardData.id
@@ -329,7 +324,6 @@ const App: React.FC = () => {
             setSelectedDeckId(cardData.backendDeckId);
             setSelectedCardId(null);
             dragStateRef.current = { mode: "none" };
-
             const cardIdsInDeck = Object.values(
               currentState.room.decks[cardData.backendDeckId].cards
             ).map(
@@ -338,7 +332,6 @@ const App: React.FC = () => {
                   c.card_front || `card${idx}`
                 }-${idx}`
             );
-
             setDraggedItemInfo({
               id: cardData.backendDeckId,
               type: "deck",
@@ -364,9 +357,7 @@ const App: React.FC = () => {
         }
         deckDragTimerRef.current = null;
       }, DECK_DRAG_DELAY);
-
       deckDragTimerRef.current = timerId;
-
       dragStateRef.current = {
         mode: "potential_deck_drag",
         cardId: cardData.id,
@@ -380,22 +371,42 @@ const App: React.FC = () => {
     [visualCards]
   );
 
-  const handleBackgroundMouseDown = useCallback((screenPos: Position) => {
-    setSelectedCardId(null);
-    setSelectedDeckId(null);
-    setDraggedItemInfo(null);
-    if (deckDragTimerRef.current) {
-      clearTimeout(deckDragTimerRef.current);
-      deckDragTimerRef.current = null;
-    }
-    dragStateRef.current = { mode: "panning", startScreenPos: screenPos };
-  }, []);
+  const handleBackgroundMouseDown = useCallback(
+    (screenPos: Position) => {
+      setSelectedCardId(null);
+      setSelectedDeckId(null);
+      setDraggedItemInfo(null);
+      if (deckDragTimerRef.current) {
+        clearTimeout(deckDragTimerRef.current);
+        deckDragTimerRef.current = null;
+      }
+      dragStateRef.current = { mode: "panning", startScreenPos: screenPos };
+      cameraRef.current = cameraRef.current.resetInertia();
+      triggerRender();
+    },
+    [triggerRender]
+  );
 
   const handleCardMove = useCallback(
     (worldX: number, worldY: number, screenX: number, screenY: number) => {
       const currentDragState = dragStateRef.current;
+      let cameraUpdated = false;
 
-      if (currentDragState.mode === "potential_deck_drag") {
+      if (currentDragState.mode === "panning") {
+        const panInfo = currentDragState as PanInfo;
+        const lastScreenPos = panInfo.lastScreenPos ?? panInfo.startScreenPos;
+        const dx = screenX - lastScreenPos.x;
+        const dy = screenY - lastScreenPos.y;
+        const zoom = cameraRef.current.zoom;
+        if (dx !== 0 || dy !== 0) {
+          cameraRef.current = cameraRef.current.translate({
+            x: -dx / zoom,
+            y: +dy / zoom,
+          });
+          panInfo.lastScreenPos = { x: screenX, y: screenY };
+          cameraUpdated = true;
+        }
+      } else if (currentDragState.mode === "potential_deck_drag") {
         const dx = screenX - currentDragState.startScreenPos.x;
         const dy = screenY - currentDragState.startScreenPos.y;
         if (Math.sqrt(dx * dx + dy * dy) > DECK_DRAG_MOVE_THRESHOLD) {
@@ -406,71 +417,81 @@ const App: React.FC = () => {
             (c) => c.id === currentDragState.cardId
           );
           if (cardData) {
+            const offsetX = currentDragState.startWorldPos.x - cardData.x;
+            const offsetY = currentDragState.startWorldPos.y - cardData.y;
             setDraggedItemInfo({
               id: currentDragState.cardId,
               type: "card",
-              currentPos: {
-                x: worldX - (currentDragState.startWorldPos.x - cardData.x),
-                y: worldY - (currentDragState.startWorldPos.y - cardData.y),
-              },
-              offsetX: currentDragState.startWorldPos.x - cardData.x,
-              offsetY: currentDragState.startWorldPos.y - cardData.y,
+              currentPos: { x: worldX - offsetX, y: worldY - offsetY },
+              offsetX: offsetX,
+              offsetY: offsetY,
               backendDeckId: currentDragState.backendDeckId,
               backendIndex: currentDragState.backendIndex,
             });
           }
         }
-        return;
-      }
-
-      if (draggedItemInfo) {
-        let newX = worldX - draggedItemInfo.offsetX;
-        let newY = worldY - draggedItemInfo.offsetY;
+      } else if (draggedItemInfo) {
         setDraggedItemInfo((prev) =>
-          prev ? { ...prev, currentPos: { x: newX, y: newY } } : null
+          prev
+            ? {
+                ...prev,
+                currentPos: {
+                  x: worldX - prev.offsetX,
+                  y: worldY - prev.offsetY,
+                },
+              }
+            : null
         );
       }
+
+      if (cameraUpdated) {
+        triggerRender();
+      }
     },
-    [draggedItemInfo, visualCards]
+    [draggedItemInfo, visualCards, triggerRender]
   );
 
-  const checkOverlap = (
-    pos: Position,
-    draggedCardId: string
-  ): CardData | null => {
-    for (let i = visualCards.length - 1; i >= 0; i--) {
-      const card = visualCards[i];
+  const checkOverlap = useCallback(
+    (pos: Position): OverlapResult | null => {
+      if (!draggedItemInfo) return null;
 
-      if (draggedItemInfo?.type === "card" && card.id === draggedItemInfo.id)
-        continue;
+      for (let i = visualCards.length - 1; i >= 0; i--) {
+        const card = visualCards[i];
+        if (draggedItemInfo.type === "card" && card.id === draggedItemInfo.id)
+          continue;
+        if (
+          draggedItemInfo.type === "deck" &&
+          card.backendDeckId === draggedItemInfo.id
+        )
+          continue;
 
-      if (
-        draggedItemInfo?.type === "deck" &&
-        card.backendDeckId === draggedItemInfo.id
-      )
-        continue;
+        const cardRight = card.x + CARD_WIDTH;
+        const cardBottom = card.y + CARD_HEIGHT;
+        const dropCenterX =
+          pos.x + (draggedItemInfo.type === "card" ? CARD_WIDTH / 2 : 0);
+        const dropCenterY =
+          pos.y + (draggedItemInfo.type === "card" ? CARD_HEIGHT / 2 : 0);
 
-      const cardRight = card.x + CARD_WIDTH;
-      const cardBottom = card.y + CARD_HEIGHT;
-
-      const dropCenterX =
-        pos.x + (draggedItemInfo?.type === "card" ? CARD_WIDTH / 2 : 0);
-      const dropCenterY =
-        pos.y + (draggedItemInfo?.type === "card" ? CARD_HEIGHT / 2 : 0);
-
-      if (
-        dropCenterX >= card.x &&
-        dropCenterX <= cardRight &&
-        dropCenterY >= card.y &&
-        dropCenterY <= cardBottom
-      ) {
-        return card;
+        if (
+          dropCenterX >= card.x &&
+          dropCenterX <= cardRight &&
+          dropCenterY >= card.y &&
+          dropCenterY <= cardBottom
+        ) {
+          return {
+            type: "card",
+            targetCard: card,
+            targetDeckId: card.backendDeckId,
+          };
+        }
       }
-    }
-    return null;
-  };
+      return null;
+    },
+    [visualCards, draggedItemInfo]
+  );
 
   const handleCardMouseUp = useCallback(() => {
+    const wasPanning = dragStateRef.current.mode === "panning";
     const currentDragState = dragStateRef.current;
     const currentDraggedItem = draggedItemInfo;
 
@@ -480,13 +501,11 @@ const App: React.FC = () => {
     }
 
     if (currentDraggedItem && currentDraggedItem.currentPos) {
+      const overlapResult = checkOverlap(currentDraggedItem.currentPos);
+
       if (currentDraggedItem.type === "card") {
-        const targetCard = checkOverlap(
-          currentDraggedItem.currentPos,
-          currentDraggedItem.id
-        );
         if (
-          targetCard &&
+          overlapResult &&
           currentDraggedItem.backendDeckId &&
           currentDraggedItem.backendIndex !== undefined
         ) {
@@ -495,8 +514,8 @@ const App: React.FC = () => {
             args: {
               dragged_deck_id: currentDraggedItem.backendDeckId,
               dragged_card_index: currentDraggedItem.backendIndex,
-              target_deck_id: targetCard.backendDeckId,
-              target_card_index: targetCard.backendIndex,
+              target_deck_id: overlapResult.targetDeckId,
+              target_card_index: overlapResult.targetCard?.backendIndex ?? 0,
             },
           });
         } else if (
@@ -516,16 +535,24 @@ const App: React.FC = () => {
           });
         }
       } else if (currentDraggedItem.type === "deck") {
-        sendAction({
-          action: "move_deck",
-          args: {
-            deck_id: currentDraggedItem.id,
-            pos: [
-              currentDraggedItem.currentPos.x,
-              currentDraggedItem.currentPos.y,
-            ],
-          },
-        });
+        if (overlapResult) {
+          sendAction({
+            action: "merge_decks",
+            args: {
+              dragged_deck_id: currentDraggedItem.id,
+              target_deck_id: overlapResult.targetDeckId,
+            },
+          });
+        } else {
+          sendAction({
+            action: "move_deck",
+            args: {
+              deck_id: currentDraggedItem.id,
+              x: currentDraggedItem.currentPos.x,
+              y: currentDraggedItem.currentPos.y,
+            },
+          });
+        }
       }
     } else if (currentDragState.mode === "potential_deck_drag") {
       const cardIndex = visualCards.findIndex(
@@ -533,14 +560,15 @@ const App: React.FC = () => {
       );
       if (cardIndex !== -1) {
         setSelectedCardId(currentDragState.cardId);
-        setSelectedDeckId(null);
       }
     }
 
     dragStateRef.current = { mode: "none" };
-    setDraggedItemInfo(null);
     setSelectedDeckId(null);
-  }, [sendAction, draggedItemInfo, visualCards]);
+    if (wasPanning) {
+      triggerRender();
+    }
+  }, [sendAction, draggedItemInfo, visualCards, checkOverlap, triggerRender]);
 
   const handleCardFlip = useCallback(
     (cardIndex: number) => {
@@ -566,7 +594,6 @@ const App: React.FC = () => {
     },
     [visualCards, sendAction]
   );
-
   const handleCardSelect = useCallback(
     (cardIndex: number) => {
       const cardId = visualCards[cardIndex]?.id;
@@ -575,12 +602,10 @@ const App: React.FC = () => {
     },
     [visualCards]
   );
-
   const handleDeselectCard = useCallback(() => {
     setSelectedCardId(null);
     setSelectedDeckId(null);
   }, []);
-
   const getFirstDeckId = useCallback((): string | null => {
     const currentGameState = latestGameState.current;
     const availableDeckIds = currentGameState?.room?.decks
@@ -588,7 +613,6 @@ const App: React.FC = () => {
       : [];
     return availableDeckIds.length > 0 ? availableDeckIds[0] : null;
   }, []);
-
   const handleInitializeDeck = useCallback(() => {
     const initialPos: [number, number] = [
       Math.random() * 200 + 50,
@@ -599,13 +623,11 @@ const App: React.FC = () => {
       args: { deck_type: "standard52", pos: initialPos },
     });
   }, [sendAction]);
-
   const handleShuffleDeck = useCallback(() => {
     const targetDeckId = getFirstDeckId();
     if (!targetDeckId) return;
     sendAction({ action: "shuffle", args: { deck_id: targetDeckId } });
   }, [sendAction, getFirstDeckId]);
-
   const handleRemoveTopCard = useCallback(
     (count = 1) => {
       const targetDeckId = getFirstDeckId();
@@ -617,7 +639,6 @@ const App: React.FC = () => {
     },
     [sendAction, getFirstDeckId]
   );
-
   const handleClearTable = useCallback(() => {
     setGameState(null);
     setVisualCards([]);
@@ -625,20 +646,15 @@ const App: React.FC = () => {
     setSelectedDeckId(null);
     setDraggedItemInfo(null);
     dragStateRef.current = { mode: "none" };
-  }, [sendAction]);
-
+    previousVisualCardsRef.current = "[]";
+  }, []);
   const handleSavePreset = useCallback((preset: Preset) => {}, []);
-
-  const handleLoadPreset = useCallback(
-    (preset: Preset) => {
-      setSelectedCardId(null);
-      setSelectedDeckId(null);
-      setDraggedItemInfo(null);
-      dragStateRef.current = { mode: "none" };
-    },
-    [sendAction]
-  );
-
+  const handleLoadPreset = useCallback((preset: Preset) => {
+    setSelectedCardId(null);
+    setSelectedDeckId(null);
+    setDraggedItemInfo(null);
+    dragStateRef.current = { mode: "none" };
+  }, []);
   const handleAddCard = useCallback(
     (options: { suit: string; rank: string; faceUp: boolean }) => {
       let backendCardFront = "";
@@ -668,7 +684,6 @@ const App: React.FC = () => {
     },
     [sendAction, getFirstDeckId]
   );
-
   const currentSelectedCardIndex = useMemo(() => {
     return selectedCardId !== null &&
       cardMapForSelection.hasOwnProperty(selectedCardId)
@@ -701,6 +716,7 @@ const App: React.FC = () => {
               cards={visualCards}
               dragState={dragStateRef.current}
               draggedItemInfo={draggedItemInfo}
+              cameraRef={cameraRef}
               onCardMouseDown={handleCardMouseDown}
               onBackgroundMouseDown={handleBackgroundMouseDown}
               onCardMouseMove={handleCardMove}

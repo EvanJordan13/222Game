@@ -93,6 +93,11 @@ class BigRoom:
                          )
                     else:
                         print(f"  -> Failed to remove card {deck_id}[{card_index}], cannot move.")
+                case "merge_decks":
+                    dragged_deck_id = a["args"].get("dragged_deck_id")
+                    target_deck_id = a["args"].get("target_deck_id")
+                    if dragged_deck_id and target_deck_id:
+                        self.room = self.room.merge_decks(dragged_deck_id, target_deck_id)
  
         except:
             pass

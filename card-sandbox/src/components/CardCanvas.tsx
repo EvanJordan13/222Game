@@ -11,7 +11,6 @@ interface Position {
   x: number;
   y: number;
 }
-
 interface Card {
   id: string;
   x: number;
@@ -23,24 +22,10 @@ interface Card {
   backendIndex?: number;
   isDraggingDeck?: boolean;
 }
-
 interface Dimensions {
   width: number;
   height: number;
 }
-
-interface BackendDeck {
-  id: string;
-  cards: any[];
-  position: [number, number];
-}
-interface BackendRoom {
-  decks: { [key: string]: BackendDeck };
-}
-interface GameState {
-  room: BackendRoom;
-}
-
 type DragMode =
   | "none"
   | "panning"
@@ -59,9 +44,9 @@ interface PotentialDeckDragInfo {
 interface PanInfo {
   mode: "panning";
   startScreenPos: Position;
+  lastScreenPos?: Position;
 }
 type DragState = PotentialDeckDragInfo | PanInfo | { mode: "none" };
-
 interface DraggedItemInfo {
   id: string;
   type: "card" | "deck";
@@ -78,6 +63,7 @@ interface CardCanvasProps {
   cards: Card[];
   dragState: DragState;
   draggedItemInfo: DraggedItemInfo | null;
+  cameraRef: React.RefObject<Camera>;
   onCardMouseDown?: (
     index: number,
     worldPos: Position,
@@ -102,6 +88,7 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
   cards,
   dragState,
   draggedItemInfo,
+  cameraRef,
   onCardMouseDown,
   onBackgroundMouseDown,
   onCardMouseMove,
@@ -117,11 +104,10 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
     width: window.innerWidth,
     height: window.innerHeight,
   });
-  const cameraRef = useRef<Camera>(Camera.new());
   const animationFrameRef = useRef<number | null>(null);
-  const [renderTrigger, setRenderTrigger] = useState<number>(0);
   const [lastClickTime, setLastClickTime] = useState<number>(0);
   const isComponentMounted = useRef<boolean>(true);
+  const panSessionLastPosRef = useRef<Position | null>(null);
 
   useEffect(() => {
     isComponentMounted.current = true;
@@ -133,39 +119,31 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
     };
   }, []);
 
-  const triggerRender = useCallback(() => {
-    if (isComponentMounted.current) {
-      setRenderTrigger(Date.now());
-    }
-  }, []);
-
   useEffect(() => {
     const handleResize = () => {
       if (isComponentMounted.current) {
         setDimensions({ width: window.innerWidth, height: window.innerHeight });
-        triggerRender();
+        requestAnimationFrame(drawFrame);
       }
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [triggerRender]);
+  }, []);
 
-  useEffect(() => {
+  const drawFrame = useCallback(() => {
+    if (!isComponentMounted.current || !canvasRef.current || !cameraRef.current)
+      return;
+
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
-
+    const ctx = canvas.getContext("2d");
     const cam = cameraRef.current;
 
-    if (cam.hasInertia() && dragState.mode !== "panning") {
-      cameraRef.current = cam.updateInertia();
+    if (!ctx) return;
 
-      animationFrameRef.current = requestAnimationFrame(triggerRender);
-    } else {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
+    let needsAnotherFrame = false;
+    if (dragState.mode !== "panning" && cam.hasInertia()) {
+      cameraRef.current = cam.updateInertia();
+      needsAnotherFrame = true;
     }
 
     ctx.clearRect(0, 0, dimensions.width, dimensions.height);
@@ -174,7 +152,6 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
     } catch (error) {
       console.error("Error drawing table:", error);
     }
-
     ctx.save();
     const worldToScreenMat = cam.worldToScreen(dimensions);
     ctx.setTransform(
@@ -226,9 +203,8 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
         const deckCards = cards.filter(
           (c) => c.backendDeckId === draggedItemInfo.id
         );
-
         deckCards
-          .sort((a, b) => a.backendIndex! - b.backendIndex!)
+          .sort((a, b) => (a.backendIndex ?? 0) - (b.backendIndex ?? 0))
           .forEach((card, index) => {
             const isSelected = false;
             const isDeckSelectedAndDragging = true;
@@ -244,20 +220,36 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
           });
       }
     }
-
     ctx.restore();
+
+    if (dragState.mode === "panning" || needsAnotherFrame) {
+      animationFrameRef.current = requestAnimationFrame(drawFrame);
+    } else {
+      animationFrameRef.current = null;
+    }
   }, [
     cards,
     dimensions,
     selectedCardIndex,
     selectedDeckId,
-    renderTrigger,
     draggedItemInfo,
     dragState.mode,
+    cameraRef,
   ]);
+
+  useEffect(() => {
+    requestAnimationFrame(drawFrame);
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [drawFrame]);
 
   const screenToWorld = useCallback(
     (screenX: number, screenY: number): Position => {
+      if (!cameraRef.current) return { x: 0, y: 0 };
       const rect = canvasRef.current?.getBoundingClientRect() ?? {
         left: 0,
         top: 0,
@@ -269,7 +261,7 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
       const transformed = pt.matrixTransform(mat);
       return { x: transformed.x, y: transformed.y };
     },
-    [dimensions]
+    [dimensions, cameraRef]
   );
 
   const isPointInCard = useCallback(
@@ -297,7 +289,6 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
           (c) => c.backendDeckId === draggedItemInfo.id
         );
         const { x: deckX, y: deckY } = draggedItemInfo.currentPos;
-
         for (let i = deckCards.length - 1; i >= 0; i--) {
           const cardX = deckX + i * 2;
           const cardY = deckY + i * 2;
@@ -309,10 +300,8 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
           }
         }
       }
-
       for (let i = cards.length - 1; i >= 0; i--) {
         const card = cards[i];
-
         if (
           draggedItemInfo &&
           ((draggedItemInfo.type === "card" &&
@@ -330,18 +319,23 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
   );
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!cameraRef.current) return;
     const screenPos = { x: e.clientX, y: e.clientY };
     const worldPos = screenToWorld(screenPos.x, screenPos.y);
     const cardIndex = findCardAtPosition(worldPos.x, worldPos.y);
 
     cameraRef.current = cameraRef.current.resetInertia();
+    panSessionLastPosRef.current = null;
+    if (animationFrameRef.current)
+      cancelAnimationFrame(animationFrameRef.current);
 
     if (cardIndex !== null) {
       if (onCardMouseDown) onCardMouseDown(cardIndex, worldPos, screenPos);
     } else {
       if (onBackgroundMouseDown) onBackgroundMouseDown(screenPos);
+      panSessionLastPosRef.current = screenPos;
+      requestAnimationFrame(drawFrame);
     }
-    triggerRender();
   };
 
   const handleMouseMoveInternal = useCallback(
@@ -353,42 +347,42 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
       let cameraUpdated = false;
 
       if (dragState.mode === "panning") {
-        const panInfo = dragState as PanInfo;
-        const lastScreenPos = panInfo.startScreenPos;
-        const dx = screenPos.x - lastScreenPos.x;
-        const dy = screenPos.y - lastScreenPos.y;
-        const zoom = cameraRef.current.zoom;
-        if (dx !== 0 || dy !== 0) {
-          cameraRef.current = cameraRef.current.translate({
-            x: -dx / zoom,
-            y: -dy / zoom,
-          });
-          panInfo.startScreenPos = screenPos;
-          cameraUpdated = true;
+        const lastPos = panSessionLastPosRef.current;
+        if (lastPos && cameraRef.current) {
+          const dx = screenPos.x - lastPos.x;
+          const dy = screenPos.y - lastPos.y;
+          const zoom = cameraRef.current.zoom;
+          if (dx !== 0 || dy !== 0) {
+            cameraRef.current = cameraRef.current.translate({
+              x: -dx / zoom,
+              y: +dy / zoom,
+            });
+            cameraUpdated = true;
+          }
         }
+        panSessionLastPosRef.current = screenPos;
       }
 
       if (onCardMouseMove) {
         onCardMouseMove(worldPos.x, worldPos.y, screenPos.x, screenPos.y);
       }
-
-      if (cameraUpdated && isComponentMounted.current) {
-        triggerRender();
-      }
     },
-    [dragState, draggedItemInfo, screenToWorld, onCardMouseMove, triggerRender]
+    [dragState, draggedItemInfo, screenToWorld, onCardMouseMove, cameraRef]
   );
 
   const handleMouseUpInternal = useCallback(() => {
-    const hadInertiaBeforeReset = cameraRef.current.hasInertia();
+    const wasPanning = dragState.mode === "panning";
+    const hadInertia = cameraRef.current?.hasInertia() ?? false;
+    panSessionLastPosRef.current = null;
+
     if (dragState.mode !== "none" || draggedItemInfo) {
       if (onCardMouseUp) onCardMouseUp();
     }
 
-    if (dragState.mode === "panning" && hadInertiaBeforeReset) {
-      triggerRender();
+    if (wasPanning && !hadInertia) {
+      requestAnimationFrame(drawFrame);
     }
-  }, [dragState, draggedItemInfo, onCardMouseUp, triggerRender]);
+  }, [dragState, draggedItemInfo, onCardMouseUp, cameraRef, drawFrame]);
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const screenPos = { x: e.clientX, y: e.clientY };
@@ -399,7 +393,6 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const now = Date.now();
-
     if (
       dragState.mode === "none" &&
       !draggedItemInfo &&
@@ -419,17 +412,15 @@ const CardCanvas: React.FC<CardCanvasProps> = ({
 
   const handleWheelInternal = useCallback(
     (e: WheelEvent) => {
+      if (!cameraRef.current) return;
       e.preventDefault();
       const zoomIntensity = 0.1;
       const mouseWorldPos = screenToWorld(e.clientX, e.clientY);
       const scale = e.deltaY < 0 ? 1 + zoomIntensity : 1 / (1 + zoomIntensity);
       cameraRef.current = cameraRef.current.zoomBy(scale, mouseWorldPos);
-
-      if (isComponentMounted.current) {
-        triggerRender();
-      }
+      requestAnimationFrame(drawFrame);
     },
-    [screenToWorld, triggerRender]
+    [screenToWorld, cameraRef, drawFrame]
   );
 
   useEffect(() => {
