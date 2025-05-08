@@ -84,6 +84,12 @@ interface PanInfo {
 }
 type DragState = PotentialDeckDragInfo | PanInfo | { mode: "none" };
 
+interface OverlapResult {
+  type: "card" | "deck";
+  targetCard?: CardData;
+  targetDeckId: string;
+}
+
 const darkTheme = createTheme({
   palette: {
     mode: "dark",
@@ -446,8 +452,9 @@ const App: React.FC = () => {
   );
 
   const checkOverlap = useCallback(
-    (pos: Position): CardData | null => {
+    (pos: Position): OverlapResult | null => {
       if (!draggedItemInfo) return null;
+
       for (let i = visualCards.length - 1; i >= 0; i--) {
         const card = visualCards[i];
         if (draggedItemInfo.type === "card" && card.id === draggedItemInfo.id)
@@ -457,19 +464,25 @@ const App: React.FC = () => {
           card.backendDeckId === draggedItemInfo.id
         )
           continue;
+
         const cardRight = card.x + CARD_WIDTH;
         const cardBottom = card.y + CARD_HEIGHT;
         const dropCenterX =
           pos.x + (draggedItemInfo.type === "card" ? CARD_WIDTH / 2 : 0);
         const dropCenterY =
           pos.y + (draggedItemInfo.type === "card" ? CARD_HEIGHT / 2 : 0);
+
         if (
           dropCenterX >= card.x &&
           dropCenterX <= cardRight &&
           dropCenterY >= card.y &&
           dropCenterY <= cardBottom
         ) {
-          return card;
+          return {
+            type: "card",
+            targetCard: card,
+            targetDeckId: card.backendDeckId,
+          };
         }
       }
       return null;
@@ -488,10 +501,11 @@ const App: React.FC = () => {
     }
 
     if (currentDraggedItem && currentDraggedItem.currentPos) {
+      const overlapResult = checkOverlap(currentDraggedItem.currentPos);
+
       if (currentDraggedItem.type === "card") {
-        const targetCard = checkOverlap(currentDraggedItem.currentPos);
         if (
-          targetCard &&
+          overlapResult &&
           currentDraggedItem.backendDeckId &&
           currentDraggedItem.backendIndex !== undefined
         ) {
@@ -500,8 +514,8 @@ const App: React.FC = () => {
             args: {
               dragged_deck_id: currentDraggedItem.backendDeckId,
               dragged_card_index: currentDraggedItem.backendIndex,
-              target_deck_id: targetCard.backendDeckId,
-              target_card_index: targetCard.backendIndex,
+              target_deck_id: overlapResult.targetDeckId,
+              target_card_index: overlapResult.targetCard?.backendIndex ?? 0,
             },
           });
         } else if (
@@ -521,14 +535,24 @@ const App: React.FC = () => {
           });
         }
       } else if (currentDraggedItem.type === "deck") {
-        sendAction({
-          action: "move_deck",
-          args: {
-            deck_id: currentDraggedItem.id,
-            x: currentDraggedItem.currentPos.x,
-            y: currentDraggedItem.currentPos.y,
-          },
-        });
+        if (overlapResult) {
+          sendAction({
+            action: "merge_decks",
+            args: {
+              dragged_deck_id: currentDraggedItem.id,
+              target_deck_id: overlapResult.targetDeckId,
+            },
+          });
+        } else {
+          sendAction({
+            action: "move_deck",
+            args: {
+              deck_id: currentDraggedItem.id,
+              x: currentDraggedItem.currentPos.x,
+              y: currentDraggedItem.currentPos.y,
+            },
+          });
+        }
       }
     } else if (currentDragState.mode === "potential_deck_drag") {
       const cardIndex = visualCards.findIndex(
@@ -541,7 +565,6 @@ const App: React.FC = () => {
 
     dragStateRef.current = { mode: "none" };
     setSelectedDeckId(null);
-
     if (wasPanning) {
       triggerRender();
     }

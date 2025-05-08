@@ -171,6 +171,29 @@ class Room:
         room.decks[deck_id] = room.decks[deck_id].move_deck(x, y)
         return room
     
+    def merge_decks(self, dragged_deck_id: str, target_deck_id: str) -> "Room":
+        if dragged_deck_id not in self.decks or target_deck_id not in self.decks:
+            return self
+        if dragged_deck_id == target_deck_id:
+            return self 
+
+        dragged_deck = self.decks[dragged_deck_id]
+        target_deck = self.decks[target_deck_id]
+
+        if not dragged_deck.cards:
+            return self
+
+        room = copy.copy(self)
+        room.decks = copy.copy(room.decks)
+        room.decks[target_deck_id] = copy.deepcopy(target_deck)
+
+    
+        room.decks[target_deck_id].cards.extend(dragged_deck.cards)
+
+        del room.decks[dragged_deck_id]
+
+        return room
+    
     def remove_card_from_deck(self, deck_id: str, card_index: int) -> tuple["Room", Card | None]:
         """
         Removes the card at the specified index from the deck.
